@@ -28,6 +28,8 @@ module Token = struct
       | Punctuation
       | Identifier
       | Number
+      | Char
+      | String
       | Operator
       | If
       | Then
@@ -40,6 +42,8 @@ module Token = struct
       | Punctuation -> "Punctuation"
       | Identifier -> "Identifier"
       | Number -> "Number"
+      | Char -> "Char"
+      | String -> "String"
       | Operator -> "Operator"
       | If -> "If"
       | Then -> "Then"
@@ -59,6 +63,12 @@ module Token = struct
       {token_value : string; token_type : Type.t; token_pos : int * int} =
     let line, col = token_pos in
     let token_type = Type.to_string token_type in
+    let token_value =
+      match token_value with
+      | "\t" -> "\\t"
+      | "\n" -> "\\n"
+      | token_value -> token_value
+    in
     Format.sprintf {|<%s: "%s" [%d, %d]>|} token_type token_value line col
 
   let to_keyword = function
@@ -101,6 +111,8 @@ module Token = struct
         if Char.(c = punctuation) then result := true else ());
     !result
 
+  let is_string_start string = Char.(string = '"')
+  let is_char_start char = Char.(char = '\'')
   let is_whitespace = Char.is_whitespace
 end
 
@@ -114,6 +126,7 @@ class t source_code =
 
     method private advance () =
       try
+        print_endline (Char.to_string current_char);
         current_char <- source_code.(pos);
         pos <- pos + 1;
         if Char.(current_char = '\n') then (
@@ -176,6 +189,36 @@ class t source_code =
           token_pos = (line, col);
         }
 
+    method private read_char () =
+      self#advance ();
+      let char =
+        self#read_while (fun c ->
+            if Char.(c = '\'') then
+              false
+            else
+              true)
+      in
+      self#advance ();
+      Token.
+        {token_type = Type.Char; token_value = char; token_pos = (line, col)}
+
+    method private read_string () =
+      self#advance ();
+      let string =
+        self#read_while (fun c ->
+            if Char.(c = '"') then
+              false
+            else
+              true)
+      in
+      self#advance ();
+      Token.
+        {
+          token_type = Type.String;
+          token_value = string;
+          token_pos = (line, col);
+        }
+
     method next () =
       if Token.is_whitespace current_char then (
         self#read_while Token.is_whitespace |> ignore;
@@ -188,6 +231,10 @@ class t source_code =
         self#read_operator ()
       else if Token.is_punctuation current_char then
         self#read_punctuation ()
+      else if Token.is_char_start current_char then
+        self#read_char ()
+      else if Token.is_string_start current_char then
+        self#read_string ()
       else
         failwith ("Unknown char: \'" ^ Char.to_string current_char ^ "\'")
   end

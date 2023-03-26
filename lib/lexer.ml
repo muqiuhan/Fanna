@@ -29,15 +29,24 @@ module Token = struct
       | Identifier
       | Number
       | Operator
-      | Keyword of keyword
-
-    and keyword =
       | If
       | Then
       | Else
       | Lambda
       | True
       | False
+
+    let to_string = function
+      | Punctuation -> "Punctuation"
+      | Identifier -> "Identifier"
+      | Number -> "Number"
+      | Operator -> "Operator"
+      | If -> "If"
+      | Then -> "Then"
+      | Else -> "Else"
+      | Lambda -> "Lambda"
+      | True -> "True"
+      | False -> "False"
   end
 
   type t = {
@@ -45,6 +54,12 @@ module Token = struct
     token_type : Type.t;
     token_pos : int * int;
   }
+
+  let to_string
+      {token_value : string; token_type : Type.t; token_pos : int * int} =
+    let line, col = token_pos in
+    let token_type = Type.to_string token_type in
+    Format.sprintf {|<%s: "%s" [%d, %d]>|} token_type token_value line col
 
   let to_keyword = function
     | "if" -> Type.If
@@ -75,12 +90,16 @@ module Token = struct
     || Char.is_digit identifier
 
   let is_operator operator =
-    List.for_all ['+'; '-'; '*'; '/'; '%'; '='; '&'; '|'; '>'; '<'; '!']
-      ~f:(fun c -> Char.(c = operator))
+    let result = ref false in
+    List.iter ['+'; '-'; '*'; '/'; '%'; '='; '&'; '|'; '>'; '<'; '!']
+      ~f:(fun c -> if Char.(c = operator) then result := true else ());
+    !result
 
   let is_punctuation punctuation =
-    List.for_all [','; ';'; '('; ')'; '['; ']'; '{'; '}'] ~f:(fun c ->
-        Char.(c = punctuation))
+    let result = ref false in
+    List.iter [','; ';'; '('; ')'; '['; ']'; '{'; '}'] ~f:(fun c ->
+        if Char.(c = punctuation) then result := true else ());
+    !result
 
   let is_whitespace = Char.is_whitespace
 end
@@ -90,16 +109,16 @@ class t source_code =
     val mutable pos = 0
     val mutable line = 1
     val mutable col = 0
-    val mutable current_char = String.get source_code 1
-    val source_code = String.to_array source_code
+    val mutable current_char = String.get source_code 0
+    val source_code = String.to_array (source_code ^ " ")
 
     method private advance () =
       try
         current_char <- source_code.(pos);
-        if Char.(current_char = '\n') then begin
+        pos <- pos + 1;
+        if Char.(current_char = '\n') then (
           line <- line + 1;
-          col <- 0
-        end
+          col <- 0)
         else
           col <- col + 1
       with Invalid_argument _ -> raise End_of_file
@@ -107,8 +126,8 @@ class t source_code =
     method private read_while predicate =
       let str = ref "" in
       while predicate current_char do
-        self#advance ();
-        str := !str ^ Char.to_string current_char
+        str := !str ^ Char.to_string current_char;
+        self#advance ()
       done;
       !str
 
@@ -117,7 +136,7 @@ class t source_code =
       if Token.is_keyword identifier then
         Token.
           {
-            token_type = Type.Keyword (to_keyword identifier);
+            token_type = to_keyword identifier;
             token_value = identifier;
             token_pos = (line, col);
           }
@@ -157,10 +176,9 @@ class t source_code =
         }
 
     method next () =
-      if Token.is_whitespace current_char then begin
+      if Token.is_whitespace current_char then (
         self#read_while Token.is_whitespace |> ignore;
-        self#next ()
-      end
+        self#next ())
       else if Token.is_identifier_start current_char then
         self#read_identifier ()
       else if Token.is_number current_char then
@@ -170,7 +188,7 @@ class t source_code =
       else if Token.is_punctuation current_char then
         self#read_punctuation ()
       else
-        failwith "Unknown token"
+        failwith ("Unknown char: \'" ^ Char.to_string current_char ^ "\'")
   end
 
 let to_token_list source_code =

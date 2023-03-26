@@ -1,0 +1,28 @@
+pstack = NIL
+Goto = false
+
+Reset = fn th ->
+    Call_CC(fn K ->
+        pstack = Cons(K, pstack)
+        Goto(th)
+    )
+
+Shift = fn F ->
+    Call_CC(fn K ->
+        Goto(fn ->
+            F(fn v ->
+                Call_CC(fn k1 ->
+                    pstack = Cons(k1, pstack)
+                    K(v)))))
+
+let (v = Call_CC(fn K -> 
+                    Goto = K
+                    K(false)))
+{
+    if V {
+        let (r = V(), H = Car(pstack)) {
+            pstack = Cdr(pstack)
+            H(r)
+        }
+    }
+}

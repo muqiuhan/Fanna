@@ -168,6 +168,7 @@ class t source_code =
 
     method private read_punctuation () =
       let punctuation = Char.to_string current_char in
+      self#advance ();
       Token.
         {
           token_type = Type.Punctuation;

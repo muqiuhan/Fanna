@@ -1,0 +1,6 @@
+a = 1
+b = 2.0
+
+Add = fn a b -> a + b
+
+Add a b |> Printf

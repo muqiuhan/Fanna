@@ -29,14 +29,14 @@ module Token = struct
       | Identifier
       | Number
       | Char
+      | Bool
       | String
       | Operator
       | If
       | Then
+      | Comment
       | Else
       | Lambda
-      | True
-      | False
 
     let to_string = function
       | Punctuation -> "Punctuation"
@@ -45,12 +45,12 @@ module Token = struct
       | Char -> "Char"
       | String -> "String"
       | Operator -> "Operator"
+      | Bool -> "Bool"
       | If -> "If"
+      | Comment -> "Comment"
       | Then -> "Then"
       | Else -> "Else"
       | Lambda -> "Lambda"
-      | True -> "True"
-      | False -> "False"
   end
 
   type t = {
@@ -76,8 +76,6 @@ module Token = struct
     | "then" -> Type.Then
     | "else" -> Type.Else
     | "fn" -> Type.Lambda
-    | "#t" -> Type.True
-    | "#f" -> Type.False
     | _ -> failwith "unknown keyword"
 
   let is_keyword = function
@@ -85,14 +83,13 @@ module Token = struct
     | "then" -> true
     | "else" -> true
     | "fn" -> true
-    | "#t" -> true
-    | "#f" -> true
     | _ -> false
 
   let is_number number =
     Char.is_digit number || List.for_all ['.'] ~f:(fun c -> Char.(c = number))
 
   let is_identifier_start = Char.is_alpha
+  let is_bool_start c = Char.(c = '#')
 
   let is_identifier identifier =
     Char.(identifier = '_')
@@ -101,8 +98,10 @@ module Token = struct
 
   let is_operator operator =
     let result = ref false in
-    List.iter ['+'; '-'; '*'; '/'; '%'; '='; '&'; '|'; '>'; '<'; '!']
-      ~f:(fun c -> if Char.(c = operator) then result := true else ());
+    List.iter
+      [
+        '+'; '-'; '*'; '/'; '%'; '='; '&'; '|'; '>'; '<'; '!'; '#'; '@'; '?'; '$';
+      ] ~f:(fun c -> if Char.(c = operator) then result := true else ());
     !result
 
   let is_punctuation punctuation =
@@ -126,7 +125,6 @@ class t source_code =
 
     method private advance () =
       try
-        print_endline (Char.to_string current_char);
         current_char <- source_code.(pos);
         pos <- pos + 1;
         if Char.(current_char = '\n') then (
@@ -172,12 +170,21 @@ class t source_code =
 
     method private read_operator () =
       let operator = self#read_while Token.is_operator in
-      Token.
-        {
-          token_type = Type.Operator;
-          token_value = operator;
-          token_pos = (line, col);
-        }
+      if String.(operator = "#-") then
+        let comment = self#read_while (fun c -> Char.(c <> '\n')) in
+        Token.
+          {
+            token_type = Type.Comment;
+            token_value = comment;
+            token_pos = (line, col);
+          }
+      else
+        Token.
+          {
+            token_type = Type.Operator;
+            token_value = operator;
+            token_pos = (line, col);
+          }
 
     method private read_punctuation () =
       let punctuation = Char.to_string current_char in

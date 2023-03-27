@@ -1,6 +1,24 @@
 a = 1
 b = 2.0
 
+#- Add two numbers
 Add = fn a b -> a + b
+Print_Int(Add(a, b))
 
-Add(a, b) |> Print_Int
+#- Fibonacci
+Fib = fn n -> if n < 2 then n else Fib(n - 1) + Fib(n - 2)
+Fib(15) |> Print_Int
+
+#- Range
+Print_Range = fn a b -> 
+    if a <= b {
+        Print_Int(a)
+        if a + 1 <= b {
+            Print_Str(", ")
+            Print_Range(a + 1, b)
+        } else {
+            Print_Str("\n")
+        }
+    }
+
+Print_Range(1, 10)

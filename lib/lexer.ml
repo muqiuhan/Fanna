@@ -37,6 +37,11 @@ module Token = struct
       | Comment
       | Else
       | Lambda
+      | Let
+      | Import
+      | Module
+      | For
+      | While
 
     let to_string = function
       | Punctuation -> "Punctuation"
@@ -46,11 +51,16 @@ module Token = struct
       | String -> "String"
       | Operator -> "Operator"
       | Bool -> "Bool"
-      | If -> "If"
       | Comment -> "Comment"
+      | If -> "If"
       | Then -> "Then"
       | Else -> "Else"
       | Lambda -> "Lambda"
+      | Let -> "Let"
+      | Import -> "Import"
+      | Module -> "Module"
+      | For -> "For"
+      | While -> "While"
   end
 
   type t = {
@@ -73,15 +83,25 @@ module Token = struct
 
   let to_keyword = function
     | "if" -> Type.If
-    | "then" -> Type.Then
+    | "let" -> Type.Let
     | "else" -> Type.Else
+    | "then" -> Type.Then
+    | "module" -> Type.Module
+    | "import" -> Type.Import
+    | "for" -> Type.For
+    | "while" -> Type.While
     | "fn" -> Type.Lambda
     | _ -> failwith "unknown keyword"
 
   let is_keyword = function
     | "if" -> true
-    | "then" -> true
     | "else" -> true
+    | "let" -> true
+    | "then" -> true
+    | "for" -> true
+    | "while" -> true
+    | "import" -> true
+    | "module" -> true
     | "fn" -> true
     | _ -> false
 
@@ -100,7 +120,22 @@ module Token = struct
     let result = ref false in
     List.iter
       [
-        '+'; '-'; '*'; '/'; '%'; '='; '&'; '|'; '>'; '<'; '!'; '#'; '@'; '?'; '$';
+        '+';
+        '-';
+        '*';
+        '/';
+        '%';
+        '=';
+        '&';
+        '|';
+        '>';
+        '<';
+        '!';
+        '#';
+        '@';
+        '?';
+        '$';
+        ':';
       ] ~f:(fun c -> if Char.(c = operator) then result := true else ());
     !result
 
@@ -117,7 +152,7 @@ end
 
 class t source_code =
   object (self)
-    val mutable pos = 0
+    val mutable pos = 1
     val mutable line = 1
     val mutable col = 0
     val mutable current_char = String.get source_code 0
@@ -168,16 +203,19 @@ class t source_code =
           token_pos = (line, col);
         }
 
+    method private read_comment () =
+      let comment = self#read_while (fun c -> Char.(c <> '\n')) in
+      Token.
+        {
+          token_type = Type.Comment;
+          token_value = comment;
+          token_pos = (line, col);
+        }
+
     method private read_operator () =
       let operator = self#read_while Token.is_operator in
-      if String.(operator = "#-") then
-        let comment = self#read_while (fun c -> Char.(c <> '\n')) in
-        Token.
-          {
-            token_type = Type.Comment;
-            token_value = comment;
-            token_pos = (line, col);
-          }
+      if String.(operator = "#|") then
+        self#read_comment ()
       else
         Token.
           {
@@ -246,7 +284,7 @@ class t source_code =
         failwith ("Unknown char: \'" ^ Char.to_string current_char ^ "\'")
   end
 
-let to_token_list source_code =
+let to_token_array source_code =
   let lexer = new t source_code in
   let token_stack = Stack.create () in
   try
@@ -254,4 +292,4 @@ let to_token_list source_code =
       Stack.push token_stack (lexer#next ())
     done;
     failwith "Lexer error"
-  with End_of_file -> token_stack |> Stack.to_list |> List.rev
+  with End_of_file -> token_stack |> Stack.to_array |> Array.rev

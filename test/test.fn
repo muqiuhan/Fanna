@@ -20,19 +20,37 @@
 #| OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #| SOFTWARE.
 
-module factorial
+module test
+import std
 
-import std::io
+Hello := lambda ->
+    (io.Writeln "Hello World!")
+;;
 
-let factorial(n: Int32) -> Int64 {
-    if n = 0 then
-        factorial = 1
-    else
-        factorial = n * factorial(n - 1);
-}
 
-let n: Int32 = 0 {
-    for n = 0 to 16 {
-        io.writeln(n, "! = ", factorial(n))
-    }
-}
+Factorial := lambda n ->
+    cond n in
+        | (or (equal n 0) (equal n 1)) -> 
+            return 1;
+        | default -> 
+            return (* n (Factorial (min n 1)));
+    end
+;;
+
+Test_Hello := lambda ->
+    (Hello)
+;;
+
+Test_Factorial := lambda ->
+    loop n := 0 until (= n 16) do
+        (io.Writeln n "! = " (Factorial n));
+    end
+;;
+
+Main := lambda args ->
+    (io.Writeln "Test Hello...")
+    (Test_Hello)
+
+    (io.Writeln "Test Factorial...")
+    (Test_Factorial)
+;;

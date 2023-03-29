@@ -1,4 +1,4 @@
-profile = conventional
+profile = ocamlformat
 leading-nested-match-parens = false
 space-around-variants = false
 space-around-arrays = false
@@ -11,3 +11,4 @@ cases-exp-indent = 2
 if-then-else = fit-or-vertical
 let-and = sparse
 type-decl = sparse
+exp-grouping=preserve

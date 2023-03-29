@@ -25,7 +25,14 @@ open Core
 module Token = struct
   module Type = struct
     type t =
-      | Punctuation
+      | Comma
+      | Semicolon
+      | Left_Parenthesis
+      | Right_Parenthesis
+      | Left_Braces
+      | Right_Braces
+      | Left_Bracket
+      | Right_Bracket
       | Identifier
       | Number
       | Char
@@ -33,18 +40,29 @@ module Token = struct
       | String
       | Operator
       | If
-      | Then
       | Comment
       | Else
       | Lambda
       | Let
+      | Cond
+      | In
       | Import
+      | Default
       | Module
-      | For
-      | While
+      | Do
+      | End
+      | Until
+      | Loop
 
     let to_string = function
-      | Punctuation -> "Punctuation"
+      | Comma -> "Comma"
+      | Semicolon -> "Semicolon"
+      | Left_Parenthesis -> "Left Parenthesis"
+      | Right_Parenthesis -> "Right_Parenthesis"
+      | Left_Bracket -> "Left_Bracket"
+      | Right_Bracket -> "Right_Bracket"
+      | Left_Braces -> "Left_Braces"
+      | Right_Braces -> "Right_Braces"
       | Identifier -> "Identifier"
       | Number -> "Number"
       | Char -> "Char"
@@ -53,24 +71,27 @@ module Token = struct
       | Bool -> "Bool"
       | Comment -> "Comment"
       | If -> "If"
-      | Then -> "Then"
       | Else -> "Else"
       | Lambda -> "Lambda"
       | Let -> "Let"
       | Import -> "Import"
       | Module -> "Module"
-      | For -> "For"
-      | While -> "While"
+      | Loop -> "Loop"
+      | Cond -> "Cond"
+      | Default -> "Default"
+      | Do -> "Do"
+      | Until -> "Until"
+      | In -> "In"
+      | End -> "End"
   end
 
-  type t = {
-    token_value : string;
-    token_type : Type.t;
-    token_pos : int * int;
-  }
+  type t =
+    { token_value: string;
+      token_type: Type.t;
+      token_pos: int * int }
 
-  let to_string
-      {token_value : string; token_type : Type.t; token_pos : int * int} =
+  let to_string {token_value: string; token_type: Type.t; token_pos: int * int}
+      =
     let line, col = token_pos in
     let token_type = Type.to_string token_type in
     let token_value =
@@ -85,30 +106,58 @@ module Token = struct
     | "if" -> Type.If
     | "let" -> Type.Let
     | "else" -> Type.Else
-    | "then" -> Type.Then
+    | "cond" -> Type.Cond
+    | "in" -> Type.In
+    | "do" -> Type.Do
+    | "until" -> Type.Until
+    | "end" -> Type.End
     | "module" -> Type.Module
     | "import" -> Type.Import
-    | "for" -> Type.For
-    | "while" -> Type.While
-    | "fn" -> Type.Lambda
+    | "default" -> Type.Default
+    | "loop" -> Type.Loop
+    | "lambda" -> Type.Lambda
     | _ -> failwith "unknown keyword"
 
-  let is_keyword = function
-    | "if" -> true
-    | "else" -> true
-    | "let" -> true
-    | "then" -> true
-    | "for" -> true
-    | "while" -> true
-    | "import" -> true
-    | "module" -> true
-    | "fn" -> true
-    | _ -> false
+  let to_punctuation = function
+    | "," -> Type.Comma
+    | ";" -> Type.Semicolon
+    | "(" -> Type.Left_Parenthesis
+    | ")" -> Type.Right_Parenthesis
+    | "[" -> Type.Left_Bracket
+    | "]" -> Type.Right_Bracket
+    | "{" -> Type.Left_Braces
+    | "}" -> Type.Right_Braces
+    | _ -> failwith "unknown punctuation"
+
+  let is_keyword keyword =
+    let result = ref false in
+    List.iter
+      [ "if";
+        "else";
+        "let";
+        "end";
+        "loop";
+        "do";
+        "until";
+        "import";
+        "module";
+        "default";
+        "lambda";
+        "cond";
+        "in" ] ~f:(fun s -> if String.(s = keyword) then result := true else ()) ;
+    !result
+
+  let is_punctuation punctuation =
+    let result = ref false in
+    List.iter [','; ';'; '('; ')'; '['; ']'; '{'; '}'] ~f:(fun c ->
+        if Char.(c = punctuation) then result := true else () ) ;
+    !result
 
   let is_number number =
     Char.is_digit number || List.for_all ['.'] ~f:(fun c -> Char.(c = number))
 
   let is_identifier_start = Char.is_alpha
+
   let is_bool_start c = Char.(c = '#')
 
   let is_identifier identifier =
@@ -119,8 +168,7 @@ module Token = struct
   let is_operator operator =
     let result = ref false in
     List.iter
-      [
-        '+';
+      [ '+';
         '-';
         '*';
         '/';
@@ -135,36 +183,35 @@ module Token = struct
         '@';
         '?';
         '$';
-        ':';
-      ] ~f:(fun c -> if Char.(c = operator) then result := true else ());
-    !result
-
-  let is_punctuation punctuation =
-    let result = ref false in
-    List.iter [','; ';'; '('; ')'; '['; ']'; '{'; '}'] ~f:(fun c ->
-        if Char.(c = punctuation) then result := true else ());
+        ':' ] ~f:(fun c -> if Char.(c = operator) then result := true else ()) ;
     !result
 
   let is_string_start string = Char.(string = '"')
+
   let is_char_start char = Char.(char = '\'')
+
   let is_whitespace = Char.is_whitespace
 end
 
 class t source_code =
   object (self)
     val mutable pos = 1
+
     val mutable line = 1
+
     val mutable col = 0
+
     val mutable current_char = String.get source_code 0
+
     val source_code = String.to_array (source_code ^ " ")
 
     method private advance () =
       try
-        current_char <- source_code.(pos);
-        pos <- pos + 1;
+        current_char <- source_code.(pos) ;
+        pos <- pos + 1 ;
         if Char.(current_char = '\n') then (
-          line <- line + 1;
-          col <- 0)
+          line <- line + 1 ;
+          col <- 0 )
         else
           col <- col + 1
       with Invalid_argument _ -> raise End_of_file
@@ -172,45 +219,33 @@ class t source_code =
     method private read_while predicate =
       let str = ref "" in
       while predicate current_char do
-        str := !str ^ Char.to_string current_char;
+        str := !str ^ Char.to_string current_char ;
         self#advance ()
-      done;
+      done ;
       !str
 
     method private read_identifier () =
       let identifier = self#read_while Token.is_identifier in
       if Token.is_keyword identifier then
         Token.
-          {
-            token_type = to_keyword identifier;
-            token_value = identifier;
-            token_pos = (line, col);
-          }
+          { token_type= to_keyword identifier;
+            token_value= identifier;
+            token_pos= (line, col) }
       else
         Token.
-          {
-            token_type = Identifier;
-            token_value = identifier;
-            token_pos = (line, col);
-          }
+          { token_type= Identifier;
+            token_value= identifier;
+            token_pos= (line, col) }
 
     method private read_number () =
       let number = self#read_while Token.is_number in
       Token.
-        {
-          token_type = Type.Number;
-          token_value = number;
-          token_pos = (line, col);
-        }
+        {token_type= Type.Number; token_value= number; token_pos= (line, col)}
 
     method private read_comment () =
       let comment = self#read_while (fun c -> Char.(c <> '\n')) in
       Token.
-        {
-          token_type = Type.Comment;
-          token_value = comment;
-          token_pos = (line, col);
-        }
+        {token_type= Type.Comment; token_value= comment; token_pos= (line, col)}
 
     method private read_operator () =
       let operator = self#read_while Token.is_operator in
@@ -218,56 +253,47 @@ class t source_code =
         self#read_comment ()
       else
         Token.
-          {
-            token_type = Type.Operator;
-            token_value = operator;
-            token_pos = (line, col);
-          }
+          { token_type= Type.Operator;
+            token_value= operator;
+            token_pos= (line, col) }
 
     method private read_punctuation () =
       let punctuation = Char.to_string current_char in
-      self#advance ();
+      self#advance () ;
       Token.
-        {
-          token_type = Type.Punctuation;
-          token_value = punctuation;
-          token_pos = (line, col);
-        }
+        { token_type= to_punctuation punctuation;
+          token_value= punctuation;
+          token_pos= (line, col) }
 
     method private read_char () =
-      self#advance ();
+      self#advance () ;
       let char =
         self#read_while (fun c ->
             if Char.(c = '\'') then
               false
             else
-              true)
+              true )
       in
-      self#advance ();
-      Token.
-        {token_type = Type.Char; token_value = char; token_pos = (line, col)}
+      self#advance () ;
+      Token.{token_type= Type.Char; token_value= char; token_pos= (line, col)}
 
     method private read_string () =
-      self#advance ();
+      self#advance () ;
       let string =
         self#read_while (fun c ->
             if Char.(c = '"') then
               false
             else
-              true)
+              true )
       in
-      self#advance ();
+      self#advance () ;
       Token.
-        {
-          token_type = Type.String;
-          token_value = string;
-          token_pos = (line, col);
-        }
+        {token_type= Type.String; token_value= string; token_pos= (line, col)}
 
     method next () =
       if Token.is_whitespace current_char then (
-        self#read_while Token.is_whitespace |> ignore;
-        self#next ())
+        self#read_while Token.is_whitespace |> ignore ;
+        self#next () )
       else if Token.is_identifier_start current_char then
         self#read_identifier ()
       else if Token.is_number current_char then
@@ -284,12 +310,12 @@ class t source_code =
         failwith ("Unknown char: \'" ^ Char.to_string current_char ^ "\'")
   end
 
-let to_token_array source_code =
+let to_token_list source_code =
   let lexer = new t source_code in
   let token_stack = Stack.create () in
   try
     while true do
       Stack.push token_stack (lexer#next ())
-    done;
+    done ;
     failwith "Lexer error"
-  with End_of_file -> token_stack |> Stack.to_array |> Array.rev
+  with End_of_file -> token_stack |> Stack.to_list |> List.rev

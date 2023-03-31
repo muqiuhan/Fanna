@@ -24,9 +24,8 @@ module test
 import std
 
 Hello := lambda ->
-    (io.Writeln "Hello World!")
+    (Writeln "Hello World!");
 ;;
-
 
 Factorial := lambda n ->
     cond n in
@@ -37,20 +36,19 @@ Factorial := lambda n ->
     end
 ;;
 
-Test_Hello := lambda ->
-    (Hello)
-;;
+Test_Hello := lambda -> (Hello) ;;
 
 Test_Factorial := lambda ->
     loop n := 0 until (= n 16) do
-        (io.Writeln n "! = " (Factorial n));
+        (Writeln n "! = " (Factorial n));
+        (incr n);
     end
 ;;
 
 Main := lambda args ->
-    (io.Writeln "Test Hello...")
-    (Test_Hello)
+    (Writeln "Test Hello...");
+    (Test_Hello);
 
-    (io.Writeln "Test Factorial...")
-    (Test_Factorial)
+    (Writeln "Test Factorial...");
+    (Test_Factorial);
 ;;

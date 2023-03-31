@@ -47,27 +47,27 @@ module AST = struct
   and t = expr
 
   let rec to_string = function
-    | Module v -> Format.sprintf "(Module %s)" (Token.to_string v)
-    | Import v -> Format.sprintf "(Import %s)" (Token.to_string v)
+    | Module v -> Format.sprintf "\n\t(Module %s)" (Token.to_string v)
+    | Import v -> Format.sprintf "\n\t(Import %s)" (Token.to_string v)
     | Identifier v -> Token.to_string v
-    | Number v -> Token.to_string v
-    | String v -> Token.to_string v
-    | Char v -> Token.to_string v
+    | Number v -> Format.sprintf "%s" (Token.to_string v)
+    | String v -> Format.sprintf "%s" (Token.to_string v)
+    | Char v -> Format.sprintf "%s" (Token.to_string v)
     | Assignment (assignment_identifier_ast, assignment_value_ast) ->
-      Format.sprintf "(Assignment (%s) (%s))"
+      Format.sprintf "\n(Assignment (%s) (%s))"
         (to_string assignment_identifier_ast)
         (to_string assignment_value_ast)
     | Lambda (lambda_args_ast, lambda_body_ast) ->
-      Format.sprintf "(Lambda (%s) (%s))"
+      Format.sprintf "\n(Lambda (%s) (%s))"
         (to_string lambda_args_ast)
         (to_string lambda_body_ast)
-    | Args args -> List.map args ~f:to_string |> String.concat ~sep:"\t\n"
+    | Args args -> List.map args ~f:to_string |> String.concat ~sep:" "
     | If (if_cond, if_body) ->
       Format.sprintf "(If (%s) (%s))" (to_string if_cond) (to_string if_body)
     | Else else_body -> Format.sprintf "(Else (%s))" (to_string else_body)
     | Cond (cond_target, cond_list) ->
       Format.sprintf "(Cond (%s) (%s))" (to_string cond_target)
-        (List.map cond_list ~f:to_string |> String.concat ~sep:"\t\n")
+        (List.map cond_list ~f:to_string |> String.concat ~sep:" ")
     | Call (call_identifier, call_args) ->
       Format.sprintf "(Call (%s) (%s))"
         (to_string call_identifier)
@@ -76,7 +76,9 @@ module AST = struct
       Format.sprintf "(Loop (%s) (%s) (%s))" (to_string loop_env)
         (to_string loop_until) (to_string loop_body)
     | Program expr_list ->
-      List.map expr_list ~f:to_string |> String.concat ~sep:"\n"
+      List.map expr_list ~f:to_string
+      |> String.concat ~sep:" "
+      |> Format.sprintf "(Program %s)"
     | END -> "(END)"
 end
 
@@ -103,13 +105,13 @@ class token_stream token_list =
       done
 
     method private error msg ast =
-      print_endline "=========================================" ;
-      print_endline ("o- Error: " ^ msg) ;
-      print_endline "o- AST:" ;
-      print_endline (AST.to_string ast) ;
-      print_endline "o- Token Stream: " ;
+      Simlog.debug "=========================================" ;
+      Simlog.debug ("o- Error: " ^ msg) ;
+      Simlog.debug "o- AST:" ;
+      Simlog.debug (AST.to_string ast) ;
+      Simlog.debug "o- Token Stream: " ;
       Array.iter token_list ~f:(fun token ->
-          print_endline (Token.to_string token) ) ;
+          Simlog.debug (Token.to_string token) ) ;
       failwith msg
   end
 
@@ -257,58 +259,65 @@ class parser token_list =
 
     method parse_module () =
       let module_ast = AST.Module next_token in
-      print_endline (AST.to_string module_ast) ;
+      Simlog.debug (AST.to_string module_ast) ;
       self#advance_n 2 ;
       module_ast
 
     method parse_import () =
       let import_ast = AST.Import next_token in
-      print_endline (AST.to_string import_ast) ;
+      Simlog.debug (AST.to_string import_ast) ;
       self#advance_n 2 ;
       import_ast
 
     method private parse_assignment () =
-      let assignment_identifier_ast = AST.Identifier current_token in
-      self#advance_n 2 ;
+      Simlog.debug "Parsing assignment..." ;
+      let assignment_identifier_ast = self#parse_identifier () in
+      self#advance () ;
       let assignment_value_ast = self#parse () in
       let assignment_ast =
         AST.Assignment (assignment_identifier_ast, assignment_value_ast)
       in
-      print_endline (AST.to_string assignment_ast) ;
+      Simlog.debug ("Parse assignment: " ^ AST.to_string assignment_ast) ;
       assignment_ast
 
     method private parse_lambda () =
+      self#advance () ;
+      prerr_endline "Parse lambda" ;
       let parse_lambda_args () =
-        self#advance () ;
-        let args_list = Stack.create () in
-        while
-          match current_token with
-          | {token_type= Operator; token_value= "->"; _} -> false
-          | {token_type= Identifier; _} -> true
-          | _ ->
-            failwith
-              ("Parse Lambda args error : " ^ Token.to_string current_token)
-        do
-          Stack.push args_list (AST.Identifier current_token) ;
-          self#advance ()
-        done ;
-        self#advance () ;
-        AST.Args (args_list |> Stack.to_list |> List.rev)
+        match current_token with
+        | {token_type= Operator; token_value= "->"; _} ->
+          self#advance_n 2 ; AST.Args []
+        | _ ->
+          let args_list = Stack.create () in
+          while
+            match current_token with
+            | {token_type= Operator; token_value= "->"; _} -> false
+            | {token_type= Identifier; _} -> true
+            | _ ->
+              failwith
+                ("Parse Lambda args error : " ^ Token.to_string current_token)
+          do
+            Stack.push args_list (AST.Identifier current_token) ;
+            self#advance ()
+          done ;
+          self#advance () ;
+          AST.Args (args_list |> Stack.to_list |> List.rev)
       in
       let lambda_args_ast = parse_lambda_args () in
       let lambda_body_ast = self#parse () in
       let lambda_ast = AST.Lambda (lambda_args_ast, lambda_body_ast) in
-      print_endline (AST.to_string lambda_ast) ;
+      Simlog.debug ("Parse lambda: " ^ AST.to_string lambda_ast) ;
       lambda_ast
 
     method private parse_cond () =
+      prerr_endline "Parsing cond" ;
       self#advance () ;
       let parse_cond_list () =
         let cond_list_ast = Stack.create () in
         while
           match current_token with
-          | {token_type= Default; _} -> true
-          | _ -> false
+          | {token_type= Default; _} -> false
+          | _ -> true
         do
           Stack.push cond_list_ast (self#parse ()) ;
           self#advance ()
@@ -319,15 +328,18 @@ class parser token_list =
       let cond_target_ast = self#parse () in
       let cond_cond_list_ast = parse_cond_list () in
       let cond_ast = AST.Cond (cond_target_ast, cond_cond_list_ast) in
-      print_endline (AST.to_string cond_ast) ;
+      Simlog.debug ("Parse cond: " ^ AST.to_string cond_ast) ;
       cond_ast
 
     method private parse_if () =
+      Simlog.debug "Parsing if ..." ;
       self#advance () ;
       let if_cond_ast = self#parse () in
       self#advance () ;
       let if_body_ast = self#parse () in
-      AST.If (if_cond_ast, if_body_ast)
+      let if_ast = AST.If (if_cond_ast, if_body_ast) in
+      Simlog.debug ("Parse if: " ^ AST.to_string if_ast) ;
+      if_ast
 
     method private parse_default () =
       self#advance_n 2 ;
@@ -335,6 +347,7 @@ class parser token_list =
       AST.Else default_body_ast
 
     method private parse_call () =
+      Simlog.debug "Parsing call..." ;
       let parse_call_args () =
         self#advance () ;
         let args_list = Stack.create () in
@@ -353,31 +366,46 @@ class parser token_list =
       let call_identifier_ast = AST.Identifier current_token in
       let call_args_ast = parse_call_args () in
       let call_ast = AST.Call (call_identifier_ast, call_args_ast) in
-      print_endline (AST.to_string call_ast) ;
+      Simlog.debug ("Parse call: " ^ AST.to_string call_ast) ;
       call_ast
 
     method private parse_loop () =
+      Simlog.debug "Parsing loop..." ;
       self#advance () ;
       let loop_env = self#parse ()
       and loop_until = self#parse ()
       and loop_body = self#parse () in
-      AST.Loop (loop_env, loop_until, loop_body)
+      let loop_ast = AST.Loop (loop_env, loop_until, loop_body) in
+      Simlog.debug ("Parse loop: " ^ AST.to_string loop_ast) ;
+      loop_ast
 
     method private parse_identifier () =
+      Simlog.debug "Parsing identifier..." ;
       let identifier_ast = AST.Identifier current_token in
-      self#advance () ; identifier_ast
+      Simlog.debug ("Parse identifier: " ^ AST.to_string identifier_ast) ;
+      self#advance () ;
+      identifier_ast
 
     method private parse_number () =
+      Simlog.debug "Parsing number..." ;
       let number_ast = AST.Number current_token in
-      self#advance () ; number_ast
+      Simlog.debug ("Parse number: " ^ AST.to_string number_ast) ;
+      self#advance () ;
+      number_ast
 
     method private parse_string () =
+      Simlog.debug "Parsing string..." ;
       let string_ast = AST.String current_token in
-      self#advance () ; string_ast
+      Simlog.debug ("Parse string: " ^ AST.to_string string_ast) ;
+      self#advance () ;
+      string_ast
 
     method private parse_char () =
+      Simlog.debug "Parsing char..." ;
       let char_ast = AST.Char current_token in
-      self#advance () ; char_ast
+      Simlog.debug ("Parse char: " ^ AST.to_string char_ast) ;
+      self#advance () ;
+      char_ast
 
     method private parse_expr () =
       if self#is_comment () then begin
@@ -431,7 +459,7 @@ class parser token_list =
       try
         while true do
           let ast = self#parse_expr () in
-          Stack.push program ast;
+          Stack.push program ast
         done ;
         failwith "parse"
       with

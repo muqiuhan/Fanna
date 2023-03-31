@@ -7,5 +7,5 @@ let _ =
     (* |> List.iter ~f:(fun token -> token |> Fanna.Lexer.Token.to_string |> print_endline) *)
     |> Fanna.Parser.to_ast
     |> Fanna.Parser.AST.to_string
-    |> Format.printf "\n\nAST: \n%s\n"
+    |> fun ast -> Format.sprintf "\nAST: \n%s\n" ast |> Simlog.info
   with Failure e -> print_endline e

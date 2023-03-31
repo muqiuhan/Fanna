@@ -20,454 +20,207 @@
  ** OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  ** SOFTWARE. *)
 
-open Error
 open Core
 open Lexer
-open Lexer.Token
+open Token
 
-module AST = struct
-  type expr =
-    | Module of Token.t
-    | Import of Token.t
-    | Identifier of Token.t
-    | Number of Token.t
-    | String of Token.t
-    | Char of Token.t
-    | Assignment of expr * expr
-    | Lambda of expr * expr
-    | Args of expr list
-    | If of expr * expr
-    | Else of expr
-    | Call of expr * expr
-    | Program of expr list
-    | Cond of expr * expr list
-    | Loop of expr * expr * expr
-    | END
+type t =
+  { token_stream: Token.t list;
+    ast: AST.t }
 
-  and t = expr
+let rec parse {token_stream; ast} =
+  match token_stream with
+  (* comment *)
+  | {token_type= Comment; _} :: token_stream -> {token_stream; ast} |> parse
+  (* module *)
+  | {token_type= Module; _} :: module_token :: token_stream ->
+    {token_stream; ast= AST.Module {module_token} :: ast} |> parse
+  (* import *)
+  | {token_type= Import; _} :: import_token :: token_stream ->
+    {token_stream; ast= AST.Import {import_token} :: ast} |> parse
+  (* define *)
+  | ({token_type= Identifier; _} as identifier_token)
+    :: {token_type= Operator; token_value= ":="; _}
+    :: token_stream ->
+    let define_identifier = AST.Identifier {identifier_token}
+    and {token_stream; ast} = {token_stream; ast= []} |> parse
+    and define_value = AST.Program [ast] in
+    {token_stream; ast= AST.Define {define_identifier; define_value} :: ast}
+  (* lambda *)
+  | ({token_type= Lambda; _} as lambda_token) :: token_stream ->
+    let token_stream, lambda_args = parse_lambda_args token_stream in
+    let {token_stream; ast} = {token_stream; ast= []} |> parse
+    and lambda_body = AST.Program [ast] in
+    { token_stream;
+      ast= AST.Lambda {lambda_token; lambda_args; lambda_body} :: ast }
+  (* program *)
+  | {token_type= Left_Braces; _} :: token_stream ->
+    let token_stream, program = parse_program token_stream in
+    {token_stream; ast= AST.Program program :: ast}
+  (* call *)
+  | ({token_type= Identifier; _} as identifier_token)
+    :: {token_type= Left_Parenthesis; _}
+    :: token_stream ->
+    let token_stream, call_args = parse_call_args token_stream
+    and call_identifier = AST.Identifier {identifier_token} in
+    {token_stream; ast= AST.Call {call_identifier; call_args} :: ast}
+  (* call *)
+  | ({token_type= Operator; _} as identifier_token)
+    :: {token_type= Left_Parenthesis; _}
+    :: token_stream ->
+    let token_stream, call_args = parse_call_args token_stream
+    and call_identifier = AST.Identifier {identifier_token} in
+    {token_stream; ast= AST.Call {call_identifier; call_args} :: ast}
+  (* cond *)
+  | {token_type= Operator; token_value= "|"; _} :: token_stream ->
+    let token_stream, cond_list, cond_default = parse_cond token_stream in
+    {token_stream; ast= AST.Cond {cond_list; cond_default} :: ast}
+  (* loop *)
+  | ({token_type= Loop; _} as loop_token) :: token_stream ->
+    let token_stream, loop_def, loop_cond, loop_body =
+      parse_loop token_stream
+    in
+    { token_stream;
+      ast= AST.Loop {loop_token; loop_def; loop_cond; loop_body} :: ast }
+  (* identifier *)
+  | ({token_type= Identifier; _} as identifier_token) :: token_stream ->
+    {token_stream; ast= AST.Identifier {identifier_token} :: ast} |> parse
+  (* string *)
+  | ({token_type= String; _} as string_token) :: token_stream ->
+    {token_stream; ast= AST.String {string_token} :: ast} |> parse
+  (* char *)
+  | ({token_type= Char; _} as char_token) :: token_stream ->
+    {token_stream; ast= AST.Char {char_token} :: ast} |> parse
+  (* number *)
+  | ({token_type= Number; _} as number_token) :: token_stream ->
+    {token_stream; ast= AST.Number {number_token} :: ast} |> parse
+  (* call args end *)
+  | {token_type= Right_Parenthesis; _} :: token_stream -> {token_stream; ast}
+  (* program end *)
+  | {token_type= Right_Braces; _} :: token_stream -> {token_stream; ast}
+  (* cond end *)
+  | {token_type= Operator; token_value= "->"; _} :: token_stream ->
+    {token_stream; ast}
+  (* loop def end *)
+  | {token_type= Until; _} :: token_stream -> {token_stream; ast}
+  (* parameter separation *)
+  | {token_type= Comma; _} :: token_stream -> {token_stream; ast}
+  (* operator to identifier *)
+  | ({token_type= Operator; _} as identifier_token) :: token_stream ->
+    {token_stream; ast= AST.Identifier {identifier_token} :: ast} |> parse
+  | _ ->
+    let error =
+      Format.sprintf "Syntax error: %s"
+        (Token.to_string (List.hd_exn token_stream))
+    in
+    Simlog.error error ; failwith error
 
-  let rec to_string = function
-    | Module v -> Format.sprintf "\n\t(Module %s)" (Token.to_string v)
-    | Import v -> Format.sprintf "\n\t(Import %s)" (Token.to_string v)
-    | Identifier v -> Token.to_string v
-    | Number v -> Format.sprintf "%s" (Token.to_string v)
-    | String v -> Format.sprintf "%s" (Token.to_string v)
-    | Char v -> Format.sprintf "%s" (Token.to_string v)
-    | Assignment (assignment_identifier_ast, assignment_value_ast) ->
-      Format.sprintf "\n(Assignment (%s) (%s))"
-        (to_string assignment_identifier_ast)
-        (to_string assignment_value_ast)
-    | Lambda (lambda_args_ast, lambda_body_ast) ->
-      Format.sprintf "\n(Lambda (%s) (%s))"
-        (to_string lambda_args_ast)
-        (to_string lambda_body_ast)
-    | Args args -> List.map args ~f:to_string |> String.concat ~sep:" "
-    | If (if_cond, if_body) ->
-      Format.sprintf "(If (%s) (%s))" (to_string if_cond) (to_string if_body)
-    | Else else_body -> Format.sprintf "(Else (%s))" (to_string else_body)
-    | Cond (cond_target, cond_list) ->
-      Format.sprintf "(Cond (%s) (%s))" (to_string cond_target)
-        (List.map cond_list ~f:to_string |> String.concat ~sep:" ")
-    | Call (call_identifier, call_args) ->
-      Format.sprintf "(Call (%s) (%s))"
-        (to_string call_identifier)
-        (to_string call_args)
-    | Loop (loop_env, loop_until, loop_body) ->
-      Format.sprintf "(Loop (%s) (%s) (%s))" (to_string loop_env)
-        (to_string loop_until) (to_string loop_body)
-    | Program expr_list ->
-      List.map expr_list ~f:to_string
-      |> String.concat ~sep:" "
-      |> Format.sprintf "(Program %s)"
-    | END -> "(END)"
-end
+and parse_loop token_stream =
+  let parse_loop_def token_stream =
+    let {token_stream; ast} = parse {token_stream; ast= []} in
+    match ast with
+    | [] -> (token_stream, [])
+    | defexprs ->
+      ( token_stream,
+        List.map defexprs ~f:(function
+          | AST.Define _ as defexpr -> defexpr
+          | expr ->
+            failwith
+              ( "Syntax error: Illegal loop initialization expression"
+              ^ AST.show_expr expr ) ) )
+  and parse_loop_cond token_stream =
+    let {token_stream; ast} = parse {token_stream; ast= []} in
+    match ast with
+    | [] -> failwith "Syntax error: loop termination condition is empty"
+    | [cond] -> begin
+      match cond with
+      | AST.Call _ -> (token_stream, cond)
+      | _ -> failwith "Syntax error: illegal loop termination expression"
+    end
+    | _ -> failwith "Syntax error: illegal loop termination expression"
+  and parse_loop_body token_stream = parse {token_stream; ast= []} in
+  let token_stream, loop_def = parse_loop_def token_stream in
+  let token_stream, loop_cond = parse_loop_cond token_stream in
+  let {token_stream; ast} = parse_loop_body token_stream in
+  let loop_body = ast in
+  (token_stream, loop_def, loop_cond, loop_body)
 
-class token_stream token_list =
-  object (self)
-    val mutable current_token = List.hd_exn token_list
-
-    val mutable next_token = List.nth_exn token_list 1
-
-    val mutable pos = 0
-
-    val token_list = token_list |> List.to_array
-
-    method private advance () =
-      try
-        pos <- pos + 1 ;
-        current_token <- token_list.(pos) ;
-        next_token <- token_list.(pos + 1)
-      with Invalid_argument _ -> raise End_of_file
-
-    method private advance_n n =
-      for _ = 1 to n do
-        self#advance ()
-      done
-
-    method private error msg ast =
-      Simlog.debug "=========================================" ;
-      Simlog.debug ("o- Error: " ^ msg) ;
-      Simlog.debug "o- AST:" ;
-      Simlog.debug (AST.to_string ast) ;
-      Simlog.debug "o- Token Stream: " ;
-      Array.iter token_list ~f:(fun token ->
-          Simlog.debug (Token.to_string token) ) ;
-      failwith msg
-  end
-
-class is token_list =
-  object
-    inherit token_stream token_list
-
-    method private is_comment () =
-      match current_token with
-      | {token_type= Comment; _} -> true
-      | _ -> false
-
-    method private is_module () =
-      match current_token with
-      | {token_type= Module; _} -> true
-      | _ -> false
-
-    method private is_import () =
-      match current_token with
-      | {token_type= Import; _} -> true
-      | _ -> false
-
-    method private is_assignment () =
-      match current_token with
-      | {token_type= Identifier; _} -> begin
-        match next_token with
-        | {token_type= Operator; token_value= ":="; _} -> true
-        | _ -> false
+and parse_cond token_stream =
+  let parse_cond_list token_stream =
+    let rec parse_cond_cond token_stream =
+      let {token_stream; ast} = {token_stream; ast= []} |> parse in
+      match ast with
+      | [] -> failwith "Syntax Error: Empty condition"
+      | [cond] -> begin
+        match cond with
+        | AST.Call _
+         |AST.Identifier _
+         |AST.Number _
+         |AST.String _
+         |AST.Char _ -> (token_stream, cond)
+        | _ -> failwith "Syntax Error: Invalid conditional expression"
       end
-      | _ -> false
+      | _ -> failwith "Syntax Error: Invalid conditional expression"
+    and parse_cond_body token_stream =
+      let {token_stream; ast} = {token_stream; ast= []} |> parse in
+      (token_stream, ast)
+    and loop (token_stream, cond_list) =
+      match token_stream with
+      | {token_type= Operator; token_value= "->"; _}
+        :: {token_type= Default; _}
+        :: token_stream -> (token_stream, cond_list)
+      | _ ->
+        let token_stream, cond_cond = parse_cond_cond token_stream in
+        let token_stream, cond_body = parse_cond_body token_stream in
+        loop (token_stream, (cond_cond, cond_body) :: cond_list)
+    in
+    loop (token_stream, [])
+  and parse_cond_default token_stream =
+    let {token_stream; ast} = {token_stream; ast= []} |> parse in
+    (token_stream, ast)
+  in
+  let token_stream, cond_list = parse_cond_list token_stream in
+  let token_stream, cond_default = parse_cond_default token_stream in
+  (token_stream, cond_list, cond_default)
 
-    method private is_lambda () =
-      match current_token with
-      | {token_type= Lambda; _} -> true
-      | _ -> false
+and parse_call_args token_stream =
+  let rec loop (token_stream, args) =
+    let parse_arg token_stream =
+      let {token_stream; ast} = parse {token_stream; ast= []} in
+      (token_stream, ast)
+    in
+    match token_stream with
+    | {token_type= Right_Parenthesis; _} :: token_stream -> (token_stream, args)
+    | _ ->
+      let token_stream, arg = parse_arg token_stream in
+      loop (token_stream, arg :: args)
+  in
+  loop (token_stream, [])
 
-    method private is_if () =
-      match current_token with
-      | {token_type= If; _} -> true
-      | _ -> false
+and parse_program token_stream =
+  let rec loop (token_stream, statements) =
+    match token_stream with
+    | {token_type= Right_Braces; _} :: token_stream -> (token_stream, statements)
+    | _ ->
+      let {token_stream; ast} = parse {token_stream; ast= []} in
+      loop (token_stream, [ast] @ statements)
+  in
+  loop (token_stream, [])
 
-    method private is_cond () =
-      match current_token with
-      | {token_type= Cond; _} -> true
-      | _ -> false
-
-    method private is_in () =
-      match current_token with
-      | {token_type= In; _} -> true
-      | _ -> false
-
-    method private is_identifier () =
-      match current_token with
-      | {token_type= Identifier; _} -> true
-      | _ -> false
-
-    method private is_call () =
-      match current_token with
-      | {token_type= Left_Parenthesis; _} -> true
-      | _ -> false
-
-    method private is_call_end () =
-      match current_token with
-      | {token_type= Right_Parenthesis; _} -> true
-      | _ -> false
-
-    method private is_end () =
-      match current_token with
-      | {token_type= End; _} -> true
-      | _ -> false
-
-    method private is_number () =
-      match current_token with
-      | {token_type= Number; _} -> true
-      | _ -> false
-
-    method private is_string () =
-      match current_token with
-      | {token_type= String; _} -> true
-      | _ -> false
-
-    method private is_char () =
-      match current_token with
-      | {token_type= Char; _} -> true
-      | _ -> false
-
-    method private is_block () =
-      match current_token with
-      | {token_type= Left_Braces; _} -> true
-      | _ -> false
-
-    method private is_block_end () =
-      match current_token with
-      | {token_type= Right_Braces; _} -> true
-      | _ -> false
-
-    method private is_cond_start () =
-      match current_token with
-      | {token_type= Operator; token_value= "|"; _} -> true
-      | _ -> false
-
-    method private is_if_cond_end () =
-      match current_token with
-      | {token_type= Operator; token_value= "->"; _} -> true
-      | _ -> false
-
-    method private is_statement_end () =
-      match current_token with
-      | {token_type= Semicolon; _} -> true
-      | _ -> false
-
-    method private is_until () =
-      match current_token with
-      | {token_type= Until; _} -> true
-      | _ -> false
-
-    method private is_do () =
-      match current_token with
-      | {token_type= Do; _} -> true
-      | _ -> false
-
-    method private is_default () =
-      match current_token with
-      | {token_type= Operator; token_value= "|"; _} -> begin
-        match next_token with
-        | {token_type= Default; _} -> true
-        | _ -> false
-      end
-      | _ -> false
-
-    method private is_loop () =
-      match current_token with
-      | {token_type= Loop; _} -> true
-      | _ -> false
-  end
-
-class parser token_list =
-  object (self)
-    inherit is token_list
-
-    method skip_comment () =
-      while self#is_comment () do
-        self#advance ()
-      done
-
-    method parse_module () =
-      let module_ast = AST.Module next_token in
-      Simlog.debug (AST.to_string module_ast) ;
-      self#advance_n 2 ;
-      module_ast
-
-    method parse_import () =
-      let import_ast = AST.Import next_token in
-      Simlog.debug (AST.to_string import_ast) ;
-      self#advance_n 2 ;
-      import_ast
-
-    method private parse_assignment () =
-      Simlog.debug "Parsing assignment..." ;
-      let assignment_identifier_ast = self#parse_identifier () in
-      self#advance () ;
-      let assignment_value_ast = self#parse () in
-      let assignment_ast =
-        AST.Assignment (assignment_identifier_ast, assignment_value_ast)
+and parse_lambda_args token_stream =
+  let rec loop (token_stream, args) =
+    match token_stream with
+    | {token_type= Operator; token_value= "->"; _} :: token_stream ->
+      (token_stream, args)
+    | ({token_type= Identifier; _} as identifier_token) :: token_stream ->
+      loop (token_stream, AST.Identifier {identifier_token} :: args)
+    | _ ->
+      let error =
+        Format.sprintf "Parse args error: %s"
+          (Token.to_string (List.hd_exn token_stream))
       in
-      Simlog.debug ("Parse assignment: " ^ AST.to_string assignment_ast) ;
-      assignment_ast
+      Simlog.error error ; failwith error
+  in
+  loop (token_stream, [])
 
-    method private parse_lambda () =
-      self#advance () ;
-      prerr_endline "Parse lambda" ;
-      let parse_lambda_args () =
-        match current_token with
-        | {token_type= Operator; token_value= "->"; _} ->
-          self#advance_n 2 ; AST.Args []
-        | _ ->
-          let args_list = Stack.create () in
-          while
-            match current_token with
-            | {token_type= Operator; token_value= "->"; _} -> false
-            | {token_type= Identifier; _} -> true
-            | _ ->
-              failwith
-                ("Parse Lambda args error : " ^ Token.to_string current_token)
-          do
-            Stack.push args_list (AST.Identifier current_token) ;
-            self#advance ()
-          done ;
-          self#advance () ;
-          AST.Args (args_list |> Stack.to_list |> List.rev)
-      in
-      let lambda_args_ast = parse_lambda_args () in
-      let lambda_body_ast = self#parse () in
-      let lambda_ast = AST.Lambda (lambda_args_ast, lambda_body_ast) in
-      Simlog.debug ("Parse lambda: " ^ AST.to_string lambda_ast) ;
-      lambda_ast
-
-    method private parse_cond () =
-      prerr_endline "Parsing cond" ;
-      self#advance () ;
-      let parse_cond_list () =
-        let cond_list_ast = Stack.create () in
-        while
-          match current_token with
-          | {token_type= Default; _} -> false
-          | _ -> true
-        do
-          Stack.push cond_list_ast (self#parse ()) ;
-          self#advance ()
-        done ;
-        Stack.push cond_list_ast (self#parse ()) ;
-        cond_list_ast |> Stack.to_list |> List.rev
-      in
-      let cond_target_ast = self#parse () in
-      let cond_cond_list_ast = parse_cond_list () in
-      let cond_ast = AST.Cond (cond_target_ast, cond_cond_list_ast) in
-      Simlog.debug ("Parse cond: " ^ AST.to_string cond_ast) ;
-      cond_ast
-
-    method private parse_if () =
-      Simlog.debug "Parsing if ..." ;
-      self#advance () ;
-      let if_cond_ast = self#parse () in
-      self#advance () ;
-      let if_body_ast = self#parse () in
-      let if_ast = AST.If (if_cond_ast, if_body_ast) in
-      Simlog.debug ("Parse if: " ^ AST.to_string if_ast) ;
-      if_ast
-
-    method private parse_default () =
-      self#advance_n 2 ;
-      let default_body_ast = self#parse () in
-      AST.Else default_body_ast
-
-    method private parse_call () =
-      Simlog.debug "Parsing call..." ;
-      let parse_call_args () =
-        self#advance () ;
-        let args_list = Stack.create () in
-        while
-          match next_token with
-          | {token_type= Right_Bracket; _} -> self#advance () ; false
-          | _ -> true
-        do
-          Stack.push args_list (self#parse ()) ;
-          self#advance ()
-        done ;
-        self#advance () ;
-        AST.Args (args_list |> Stack.to_list |> List.rev)
-      in
-      self#advance () ;
-      let call_identifier_ast = AST.Identifier current_token in
-      let call_args_ast = parse_call_args () in
-      let call_ast = AST.Call (call_identifier_ast, call_args_ast) in
-      Simlog.debug ("Parse call: " ^ AST.to_string call_ast) ;
-      call_ast
-
-    method private parse_loop () =
-      Simlog.debug "Parsing loop..." ;
-      self#advance () ;
-      let loop_env = self#parse ()
-      and loop_until = self#parse ()
-      and loop_body = self#parse () in
-      let loop_ast = AST.Loop (loop_env, loop_until, loop_body) in
-      Simlog.debug ("Parse loop: " ^ AST.to_string loop_ast) ;
-      loop_ast
-
-    method private parse_identifier () =
-      Simlog.debug "Parsing identifier..." ;
-      let identifier_ast = AST.Identifier current_token in
-      Simlog.debug ("Parse identifier: " ^ AST.to_string identifier_ast) ;
-      self#advance () ;
-      identifier_ast
-
-    method private parse_number () =
-      Simlog.debug "Parsing number..." ;
-      let number_ast = AST.Number current_token in
-      Simlog.debug ("Parse number: " ^ AST.to_string number_ast) ;
-      self#advance () ;
-      number_ast
-
-    method private parse_string () =
-      Simlog.debug "Parsing string..." ;
-      let string_ast = AST.String current_token in
-      Simlog.debug ("Parse string: " ^ AST.to_string string_ast) ;
-      self#advance () ;
-      string_ast
-
-    method private parse_char () =
-      Simlog.debug "Parsing char..." ;
-      let char_ast = AST.Char current_token in
-      Simlog.debug ("Parse char: " ^ AST.to_string char_ast) ;
-      self#advance () ;
-      char_ast
-
-    method private parse_expr () =
-      if self#is_comment () then begin
-        self#skip_comment () ; self#parse_expr ()
-      end
-      else if self#is_module () then
-        self#parse_module ()
-      else if self#is_import () then
-        self#parse_import ()
-      else if self#is_assignment () then
-        self#parse_assignment ()
-      else if self#is_lambda () then
-        self#parse_lambda ()
-      else if self#is_cond () then
-        self#parse_cond ()
-      else if self#is_default () then
-        self#parse_default ()
-      else if self#is_cond_start () then
-        self#parse_if ()
-      else if self#is_if_cond_end () then
-        raise End_of_file
-      else if self#is_statement_end () then
-        raise End_of_file
-      else if self#is_in () then
-        raise End_of_file
-      else if self#is_end () then
-        raise End_of_file
-      else if self#is_call () then
-        self#parse_call ()
-      else if self#is_call_end () then
-        raise End_of_file
-      else if self#is_loop () then
-        self#parse_loop ()
-      else if self#is_until () then
-        raise End_of_file
-      else if self#is_do () then
-        raise End_of_file
-      else if self#is_number () then
-        self#parse_number ()
-      else if self#is_string () then
-        self#parse_string ()
-      else if self#is_char () then
-        self#parse_char ()
-      else if self#is_identifier () then
-        self#parse_identifier ()
-      else
-        raise (Parser.Unknown_Token current_token)
-
-    method parse () =
-      let program = Stack.create () in
-      try
-        while true do
-          let ast = self#parse_expr () in
-          Stack.push program ast
-        done ;
-        failwith "parse"
-      with
-      | End_of_file -> AST.Program (Stack.to_list program |> List.rev)
-      | Parser.Unknown_Token token ->
-        self#error
-          ("Unknown Token " ^ Token.to_string token)
-          (AST.Program (Stack.to_list program |> List.rev))
-  end
-
-let to_ast token_list = (new parser token_list)#parse ()
+let to_ast token_stream = ({token_stream; ast= []} |> parse).ast

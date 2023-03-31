@@ -39,20 +39,14 @@ module Token = struct
       | Bool
       | String
       | Operator
-      | If
       | Comment
-      | Else
       | Lambda
-      | Let
-      | Cond
-      | In
       | Import
       | Default
       | Module
-      | Do
-      | End
       | Until
       | Loop
+      [@@deriving show]
 
     let to_string = function
       | Comma -> "Comma"
@@ -70,25 +64,19 @@ module Token = struct
       | Operator -> "Operator"
       | Bool -> "Bool"
       | Comment -> "Comment"
-      | If -> "If"
-      | Else -> "Else"
       | Lambda -> "Lambda"
-      | Let -> "Let"
       | Import -> "Import"
       | Module -> "Module"
       | Loop -> "Loop"
-      | Cond -> "Cond"
       | Default -> "Default"
-      | Do -> "Do"
       | Until -> "Until"
-      | In -> "In"
-      | End -> "End"
   end
 
   type t =
     { token_value: string;
       token_type: Type.t;
       token_pos: int * int }
+    [@@deriving show]
 
   let to_string {token_value: string; token_type: Type.t; token_pos: int * int}
       =
@@ -103,14 +91,7 @@ module Token = struct
     Format.sprintf {|<%s: "%s" [%d, %d]>|} token_type token_value line col
 
   let to_keyword = function
-    | "if" -> Type.If
-    | "let" -> Type.Let
-    | "else" -> Type.Else
-    | "cond" -> Type.Cond
-    | "in" -> Type.In
-    | "do" -> Type.Do
     | "until" -> Type.Until
-    | "end" -> Type.End
     | "module" -> Type.Module
     | "import" -> Type.Import
     | "default" -> Type.Default
@@ -131,20 +112,8 @@ module Token = struct
 
   let is_keyword keyword =
     let result = ref false in
-    List.iter
-      [ "if";
-        "else";
-        "let";
-        "end";
-        "loop";
-        "do";
-        "until";
-        "import";
-        "module";
-        "default";
-        "lambda";
-        "cond";
-        "in" ] ~f:(fun s -> if String.(s = keyword) then result := true else ()) ;
+    List.iter ["loop"; "until"; "import"; "module"; "default"; "lambda"]
+      ~f:(fun s -> if String.(s = keyword) then result := true else ()) ;
     !result
 
   let is_punctuation punctuation =
@@ -156,7 +125,8 @@ module Token = struct
   let is_number number =
     Char.is_digit number || List.for_all ['.'] ~f:(fun c -> Char.(c = number))
 
-  let is_identifier_start = Char.is_alpha
+  let is_identifier_start identifier =
+    Char.is_alpha identifier || Char.(identifier = '_')
 
   let is_bool_start c = Char.(c = '#')
 

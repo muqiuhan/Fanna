@@ -20,35 +20,58 @@
 #| OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #| SOFTWARE.
 
+#| (Module "test")
 module test
+
+#| (Import "std")
 import std
 
-Hello := lambda ->
-    (Writeln "Hello World!");
-;;
+#| (Defexpr 
+#|   (Identifier "Hello")
+#|   (Lambda (Args [])
+#|     (Program [(Call (Identifier "Writeln") [(String "Hello World!")])])))
+Hello := lambda -> { Writeln("Hello World!") }
 
-Factorial := lambda n ->
-    cond n in
-        | (or (equal n 0) (equal n 1)) -> 
-            return 1;
-        | default -> 
-            return (* n (Factorial (min n 1)));
-    end
-;;
+#| (Defexpr 
+#|   (Identifier "Factorial")
+#|   (Lambda (Args [(Identifier "n")])
+#|     (Program
+#|       [(Cond (Identifier "n")
+#|         (If (Call (Identifier "||") (Args [(Call (Identifier "=") (Args [(Identifier "n") (Number "1")
+#|                                           (Call (Identifier "=") (Args [(Identifier "n") (Number "0")]))]))
+#|           (Return (Number "1")))
+#|         (Else (Return (Call (Identifier "*") (Args [(Identifier n)
+#|                                                     (Call (Identifier "Factorial") (Args [(Call (Identifier "min") (Args [(Identifier "n") (Number "1")]))]))])))))))
+Factorial := lambda n -> {
+    | ||(=(n, 1), =(n, 0)) -> { return 1 }
+    | _ -> { return *(n, Factorial(min(n, 1))) }
+}
 
-Test_Hello := lambda -> (Hello) ;;
+#| (Defexpr
+#|   (Identifier "Test_Hello")
+#|   (Lambda (Args []))
+#|     (Program [(Call (Identifier "Hello") (Args []))])))
+Test_Hello := lambda -> { Hello() }
 
-Test_Factorial := lambda ->
-    loop n := 0 until (= n 16) do
-        (Writeln n "! = " (Factorial n));
-        (incr n);
-    end
-;;
+#| (Defexpr
+#|   (Identifier "Test_Factorial")
+#|   (Lambda (Args []))
+#|     (Program
+#|       [(Loop (Defexpr (Identifier "n") (Number 0)) (Call (Identifier "=") (Args [(Identifier "n") (Number "16")]))
+#|         (Program
+#|           [(Call (Identifier "Writeln") (Args [(Identifier "n") (String "! = ") (Call (Identifier "Factorial") (Args [(Identifier "n")]))])
+#|            (Call (Identifier "++") (Args [(Identifier "n")]))]))])))
+Test_Factorial := lambda -> {
+    loop n := 0 until =(n 16) -> {
+        Writeln(n, "! = ", Factorial(n));
+        ++(n);
+    }
+}
 
-Main := lambda args ->
-    (Writeln "Test Hello...");
-    (Test_Hello);
+Main := lambda args -> {
+    Writeln("Test Hello...");
+    Test_Hello();
 
-    (Writeln "Test Factorial...");
-    (Test_Factorial);
-;;
+    Writeln("Test Factorial...");
+    Test_Factorial();
+}

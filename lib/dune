@@ -1,3 +1,4 @@
 (library
  (name fanna)
+ (preprocess (pps ppx_deriving.show))
  (libraries core simlog))

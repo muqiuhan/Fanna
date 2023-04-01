@@ -24,9 +24,11 @@ open Core
 open Lexer
 open Token
 
-type t =
+type parser =
   { token_stream: Token.t list;
     ast: AST.t }
+
+and ast = AST.t
 
 let rec parse {token_stream; ast} =
   match token_stream with
@@ -43,16 +45,24 @@ let rec parse {token_stream; ast} =
     :: {token_type= Operator; token_value= ":="; _}
     :: token_stream ->
     let define_identifier = AST.Identifier {identifier_token}
-    and {token_stream; ast} = {token_stream; ast= []} |> parse
-    and define_value = AST.Program [ast] in
-    {token_stream; ast= AST.Define {define_identifier; define_value} :: ast}
+    and define_value_ast = {token_stream; ast= []} |> parse in
+    let token_stream = define_value_ast.token_stream
+    and define_value = define_value_ast.ast in
+    { token_stream;
+      ast=
+        AST.Define {define_identifier; define_value= AST.Program [define_value]}
+        :: ast }
   (* lambda *)
   | ({token_type= Lambda; _} as lambda_token) :: token_stream ->
     let token_stream, lambda_args = parse_lambda_args token_stream in
-    let {token_stream; ast} = {token_stream; ast= []} |> parse
-    and lambda_body = AST.Program [ast] in
+    let lambda_body_ast = {token_stream; ast= []} |> parse in
+    let token_stream = lambda_body_ast.token_stream
+    and lambda_body = lambda_body_ast.ast in
     { token_stream;
-      ast= AST.Lambda {lambda_token; lambda_args; lambda_body} :: ast }
+      ast=
+        AST.Lambda
+          {lambda_token; lambda_args; lambda_body= AST.Program [lambda_body]}
+        :: ast }
   (* program *)
   | {token_type= Left_Braces; _} :: token_stream ->
     let token_stream, program = parse_program token_stream in
@@ -84,16 +94,16 @@ let rec parse {token_stream; ast} =
       ast= AST.Loop {loop_token; loop_def; loop_cond; loop_body} :: ast }
   (* identifier *)
   | ({token_type= Identifier; _} as identifier_token) :: token_stream ->
-    {token_stream; ast= AST.Identifier {identifier_token} :: ast} |> parse
+    {token_stream; ast= AST.Identifier {identifier_token} :: ast}
   (* string *)
   | ({token_type= String; _} as string_token) :: token_stream ->
-    {token_stream; ast= AST.String {string_token} :: ast} |> parse
+    {token_stream; ast= AST.String {string_token} :: ast}
   (* char *)
   | ({token_type= Char; _} as char_token) :: token_stream ->
-    {token_stream; ast= AST.Char {char_token} :: ast} |> parse
+    {token_stream; ast= AST.Char {char_token} :: ast}
   (* number *)
   | ({token_type= Number; _} as number_token) :: token_stream ->
-    {token_stream; ast= AST.Number {number_token} :: ast} |> parse
+    {token_stream; ast= AST.Number {number_token} :: ast}
   (* call args end *)
   | {token_type= Right_Parenthesis; _} :: token_stream -> {token_stream; ast}
   (* program end *)
@@ -103,11 +113,13 @@ let rec parse {token_stream; ast} =
     {token_stream; ast}
   (* loop def end *)
   | {token_type= Until; _} :: token_stream -> {token_stream; ast}
+  (* statement end *)
+  | {token_type= Semicolon; _} :: token_stream -> {token_stream; ast}
   (* parameter separation *)
   | {token_type= Comma; _} :: token_stream -> {token_stream; ast}
   (* operator to identifier *)
   | ({token_type= Operator; _} as identifier_token) :: token_stream ->
-    {token_stream; ast= AST.Identifier {identifier_token} :: ast} |> parse
+    {token_stream; ast= AST.Identifier {identifier_token} :: ast}
   | _ ->
     let error =
       Format.sprintf "Syntax error: %s"
@@ -223,4 +235,4 @@ and parse_lambda_args token_stream =
   in
   loop (token_stream, [])
 
-let to_ast token_stream = ({token_stream; ast= []} |> parse).ast
+let to_ast token_stream = ({token_stream; ast= []} |> parse).ast |> List.rev

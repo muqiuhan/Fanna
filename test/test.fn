@@ -26,52 +26,111 @@ module test
 #| (Import "std")
 import std
 
-#| (Defexpr 
-#|   (Identifier "Hello")
-#|   (Lambda (Args [])
-#|     (Program [(Call (Identifier "Writeln") [(String "Hello World!")])])))
-Hello := lambda -> { Writeln("Hello World!") }
-
-#| (Defexpr 
-#|   (Identifier "Factorial")
-#|   (Lambda (Args [(Identifier "n")])
-#|     (Program
-#|       [(Cond (Identifier "n")
-#|         (If (Call (Identifier "||") (Args [(Call (Identifier "=") (Args [(Identifier "n") (Number "1")
-#|                                           (Call (Identifier "=") (Args [(Identifier "n") (Number "0")]))]))
-#|           (Return (Number "1")))
-#|         (Else (Return (Call (Identifier "*") (Args [(Identifier n)
-#|                                                     (Call (Identifier "Factorial") (Args [(Call (Identifier "min") (Args [(Identifier "n") (Number "1")]))]))])))))))
-Factorial := lambda n -> {
-    | ||(=(n, 1), =(n, 0)) -> { return 1 }
-    | _ -> { return *(n, Factorial(min(n, 1))) }
-}
-
-#| (Defexpr
-#|   (Identifier "Test_Hello")
-#|   (Lambda (Args []))
-#|     (Program [(Call (Identifier "Hello") (Args []))])))
-Test_Hello := lambda -> { Hello() }
-
-#| (Defexpr
-#|   (Identifier "Test_Factorial")
-#|   (Lambda (Args []))
-#|     (Program
-#|       [(Loop (Defexpr (Identifier "n") (Number 0)) (Call (Identifier "=") (Args [(Identifier "n") (Number "16")]))
-#|         (Program
-#|           [(Call (Identifier "Writeln") (Args [(Identifier "n") (String "! = ") (Call (Identifier "Factorial") (Args [(Identifier "n")]))])
-#|            (Call (Identifier "++") (Args [(Identifier "n")]))]))])))
-Test_Factorial := lambda -> {
-    loop n := 0 until =(n 16) -> {
-        Writeln(n, "! = ", Factorial(n));
-        ++(n);
-    }
-}
-
 Main := lambda args -> {
     Writeln("Test Hello...");
     Test_Hello();
 
-    Writeln("Test Factorial...");
-    Test_Factorial();
+    #| Writeln("Test Factorial...");
+    #| Test_Factorial();
 }
+
+#| [AST.Module {                       
+#|    module_token =
+#|    { Lexer.Token.token_value = "test";
+#|      token_type = Lexer.Token.Type.Identifier; token_pos = (25, 0) }};
+#|   AST.Import {
+#|     import_token =
+#|     { Lexer.Token.token_value = "std";
+#|       token_type = Lexer.Token.Type.Identifier; token_pos = (28, 0) }};
+#|   AST.Define {
+#|     define_identifier =
+#|     AST.Identifier {
+#|       identifier_token =
+#|       { Lexer.Token.token_value = "Test_Hello";
+#|         token_type = Lexer.Token.Type.Identifier; token_pos = (29, 11) }};
+#|     define_value =
+#|     (AST.Program
+#|        [[AST.Lambda {
+#|            lambda_token =
+#|            { Lexer.Token.token_value = "lambda";
+#|              token_type = Lexer.Token.Type.Lambda; token_pos = (29, 21) };
+#|            lambda_args = [];
+#|            lambda_body =
+#|            (AST.Program
+#|               [[(AST.Program
+#|                    [[AST.Call {
+#|                        call_identifier =
+#|                        AST.Identifier {
+#|                          identifier_token =
+#|                          { Lexer.Token.token_value = "Hello";
+#|                            token_type = Lexer.Token.Type.Identifier;
+#|                            token_pos = (29, 32) }};
+#|                        call_args = []}
+#|                       ]
+#|                      ])
+#|                  ]
+#|                 ])}
+#|           ]
+#|          ])}
+#|   ]
+Test_Hello := lambda -> { Hello() }
+
+#| [AST.Module {                       
+#|    module_token =
+#|    { Lexer.Token.token_value = "test";
+#|      token_type = Lexer.Token.Type.Identifier; token_pos = (25, 0) }};
+#|   AST.Import {
+#|     import_token =
+#|     { Lexer.Token.token_value = "std";
+#|       token_type = Lexer.Token.Type.Identifier; token_pos = (28, 0) }};
+#|   AST.Define {
+#|     define_identifier =
+#|     AST.Identifier {
+#|       identifier_token =
+#|       { Lexer.Token.token_value = "Hello";
+#|         token_type = Lexer.Token.Type.Identifier; token_pos = (33, 6) }};
+#|     define_value =
+#|     (AST.Program
+#|        [[AST.Lambda {
+#|            lambda_token =
+#|            { Lexer.Token.token_value = "lambda";
+#|              token_type = Lexer.Token.Type.Lambda; token_pos = (33, 16) };
+#|            lambda_args = [];
+#|            lambda_body =
+#|            (AST.Program
+#|               [[(AST.Program
+#|                    [[AST.Call {
+#|                        call_identifier =
+#|                        AST.Identifier {
+#|                          identifier_token =
+#|                          { Lexer.Token.token_value = "Writeln";
+#|                            token_type = Lexer.Token.Type.Identifier;
+#|                            token_pos = (33, 29) }};
+#|                        call_args =
+#|                        [[AST.String {
+#|                            string_token =
+#|                            { Lexer.Token.token_value = "Hello World!";
+#|                              token_type = Lexer.Token.Type.String;
+#|                              token_pos = (33, 44) }}
+#|                           ]
+#|                          ]}
+#|                       ]
+#|                      ])
+#|                  ]
+#|                 ])}
+#|           ]
+#|          ])}
+#|   ]
+Hello := lambda -> { Writeln("Hello World!") }
+
+#| Factorial := lambda n -> {
+#|     | ||(=(n, 1), =(n, 0)) -> { return 1 }
+#|     | _ -> { return *(n, Factorial(min(n, 1))) }
+#| }
+#| 
+#| Test_Factorial := lambda -> {
+#|     loop n := 0 until =(n 16) -> {
+#|         Writeln(n, "! = ", Factorial(n));
+#|         ++(n);
+#|     }
+#| }

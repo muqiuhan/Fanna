@@ -215,7 +215,7 @@ and parse_program token_stream =
     | {token_type= Right_Braces; _} :: token_stream -> (token_stream, statements)
     | _ ->
       let {token_stream; ast} = parse {token_stream; ast= []} in
-      loop (token_stream, [ast] @ statements)
+      loop (token_stream, statements @ [ast])
   in
   loop (token_stream, [])
 
@@ -235,4 +235,12 @@ and parse_lambda_args token_stream =
   in
   loop (token_stream, [])
 
-let to_ast token_stream = ({token_stream; ast= []} |> parse).ast |> List.rev
+let to_ast token_stream =
+  let program = Stack.create ()
+  and remaining = ref token_stream in
+  while List.is_empty !remaining |> not do
+    let {token_stream; ast} = {token_stream= !remaining; ast= []} |> parse in
+    Stack.push program ast ;
+    remaining := token_stream
+  done ;
+  Stack.to_list program |> List.rev

@@ -40,7 +40,6 @@ module Token = struct
       | String
       | Operator
       | Comment
-      | Lambda
       | Import
       | Default
       | Module
@@ -64,7 +63,6 @@ module Token = struct
       | Operator -> "Operator"
       | Bool -> "Bool"
       | Comment -> "Comment"
-      | Lambda -> "Lambda"
       | Import -> "Import"
       | Module -> "Module"
       | Loop -> "Loop"
@@ -96,7 +94,6 @@ module Token = struct
     | "import" -> Type.Import
     | "default" -> Type.Default
     | "loop" -> Type.Loop
-    | "lambda" -> Type.Lambda
     | _ -> failwith "unknown keyword"
 
   let to_punctuation = function
@@ -112,7 +109,7 @@ module Token = struct
 
   let is_keyword keyword =
     let result = ref false in
-    List.iter ["loop"; "until"; "import"; "module"; "default"; "lambda"]
+    List.iter ["loop"; "until"; "import"; "module"; "default"]
       ~f:(fun s -> if String.(s = keyword) then result := true else ()) ;
     !result
 

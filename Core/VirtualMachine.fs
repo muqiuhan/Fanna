@@ -1,0 +1,1 @@
+namespace Fanne.Core.VirtualMachine

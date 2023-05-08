@@ -1,4 +1,0 @@
-(executable
- (public_name fanna)
- (name main)
- (libraries fanna))

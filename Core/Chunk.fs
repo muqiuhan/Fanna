@@ -1,5 +1,19 @@
 module Fanna.Core.BinaryChunk
 
+module Const =
+    let SIGNATURE = uint32 (0x1b4c7561)
+    let VERSION = 0x53uy
+    let LUAC_FORMAT = 0uy
+    let LUAC_DATE = [| 0x19uy; 0x93uy; 0x0duy; 0x0auy; 0x1auy; 0x0auy |]
+    let CINT_SIZE = 4uy
+    let CSIZET_SIZE = 8uy
+    let INSTRUCTION_SIZE = 8uy
+    let LUA_INTEGER_SIZE = 8uy
+    let LUA_NUMBER_SIZE = 8uy
+    let LUAC_INT = 0x5678L
+    let LUAC_NUM = 370.5
+
+
 type Header
     (
         signature,
@@ -16,7 +30,7 @@ type Header
     ) =
 
     /// Signature is used to quickly identify the file format.
-    /// Lua's binary chunk signature is 4 bytes, expressed in hexadecimal is OxlB4C7561
+    /// Lua's binary chunk signature is 4 bytes, expressed in hexadecimal is Ox1B4C7561
     /// If the Lua virtual machine tries to load a binary chunk file and finds that it does not start with OxlB4C7561,
     /// it will refuse to load the file
     member public _.Signature: array<byte> = signature
@@ -170,16 +184,39 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
     member public _.SizeUpvalues: byte = sizeUpvalues
     member public _.MainFunc: ProtoType = mainFunc
 
-    static member private CheckHeader(data: array<byte>) = 
-        data
+    static member private CheckHeader(data: Utils.ByteStreamReader) =
+        if data.ReadUint32() <> Const.SIGNATURE then
+            failwith ("not a lua precompiled chunk!")
+        else if data.ReadByte() <> Const.VERSION then
+            failwith ("version mismatch!")
+        else if data.ReadByte() <> Const.LUAC_FORMAT then
+            failwith ("format mismatch!")
+        else if data.ReadBytes(6) <> Const.LUAC_DATE then
+            failwith ("corrupted!")
+        else if data.ReadByte() <> Const.CINT_SIZE then
+            failwith ("int size mismatch!")
+        else if data.ReadByte() <> Const.CSIZET_SIZE then
+            failwith ("size_t size mismatch!")
+        else if data.ReadByte() <> Const.INSTRUCTION_SIZE then
+            failwith ("instruction size mismatch!")
+        else if data.ReadByte() <> Const.LUA_INTEGER_SIZE then
+            failwith ("lua integer size mismatch!")
+        else if data.ReadByte() <> Const.LUA_NUMBER_SIZE then
+            failwith ("lua number size mismatch!")
+        else if data.ReadLuaInteger() <> Const.LUAC_INT then
+            failwith ("endianness mismatch!")
+        else if data.ReadLuaNumber() <> Const.LUAC_NUM then
+            failwith ("float format mismatch!")
+        else
+            data
 
     /// The number of Upvalue of the main function can also be obtained from the prototype of the main function, so skip this field for now
-    static member private SkipUpvalueNum(data: array<byte>) = data
+    static member private SkipUpvalueNum(data: Utils.ByteStreamReader) = data
 
-    static member private ReadProto(data: array<byte>) = ()
+    static member private ReadProto(data: Utils.ByteStreamReader) = data
 
     static member Undump(data: array<byte>) =
-        data
+        Utils.ByteStreamReader(data)
         |> BinaryChunk.CheckHeader
         |> BinaryChunk.SkipUpvalueNum
         |> BinaryChunk.ReadProto

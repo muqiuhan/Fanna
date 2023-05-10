@@ -6,6 +6,6 @@
   <ItemGroup>
     <Compile Include="Library.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="BinaryChunk.fs" />
+    <Compile Include="Chunk.fs" />
   </ItemGroup>
 </Project>

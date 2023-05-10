@@ -6,7 +6,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="UnitTestLexer.fs" />
+    <Compile Include="UnitTestUtils.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

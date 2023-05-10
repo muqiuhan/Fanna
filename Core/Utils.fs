@@ -44,12 +44,31 @@ type ByteStreamReader(data: array<byte>) =
     /// Read a Lua integer from the byte stream with ReadUint64() (8 bytes, mapped to F# int64 type)
     member public this.ReadLuaInteger() = int64 (this.ReadUint64())
 
-    /// Read a Lua float number from the byte stream with ReadUint64() (8 bytes, mapped to F# float type)
-    member public this.ReadLuaNumber() = float (this.ReadUint64())
+    /// Read a Lua float number from the byte (8 bytes, mapped to F# float type)
+    member public this.ReadLuaNumber() =
+        let floatBytes = this.ReadBytes(8)
+
+        let floatBytes =
+            if System.BitConverter.IsLittleEndian then
+                floatBytes
+            else
+                Array.rev (floatBytes)
+
+        System.BitConverter.ToDouble(floatBytes)
 
     /// Read a string from the byte stream
     member public this.ReadString() =
         match this.ReadByte() with
         | 0uy -> ""
-        | 0xFFuy -> System.BitConverter.ToString(this.ReadBytes(int (this.ReadUint64())))
-        | error -> failwith $"ReadString() -> {error}"
+        | 0xFFuy -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (this.ReadUint64())))
+        | size -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (size) - 1))
+
+module Numeric =
+    type Convert =
+        static member Int64ToByteArray(i: int64) =
+            let mutable result = Array.zeroCreate<byte> 8
+
+            for j = 0 to 7 do
+                result.[j] <- byte (i >>> (j * 8))
+
+            result

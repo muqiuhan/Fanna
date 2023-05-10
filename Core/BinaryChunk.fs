@@ -157,12 +157,11 @@ and LocVar(varName, startPC, endPC) =
     member public _.StartPC: uint32 = startPC
     member public _.EndPC: uint32 = endPC
 
-
 /// Lua's binary chunk is essentially a byte stream.
-/// The binary chunk format (including Lua virtual machine instructions) is an internal implementation detail of the Lua virtual machine. 
-/// It is not standardized, and there is no official document explaining it. 
+/// The binary chunk format (including Lua virtual machine instructions) is an internal implementation detail of the Lua virtual machine.
+/// It is not standardized, and there is no official document explaining it.
 /// Everything is subject to the source code of the official Lua implementation.
-/// The design of the binary chunk format does not consider cross-platform requirements. 
+/// The design of the binary chunk format does not consider cross-platform requirements.
 /// For data that needs to be represented by more than one byte, the issue of endianness must be considered.
 /// The design of the binary chunk format does not consider compatibility issues between different Lua versions.
 /// The binary chunk format is not intentionally compact.
@@ -170,3 +169,17 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
     member public _.Header: Header = header
     member public _.SizeUpvalues: byte = sizeUpvalues
     member public _.MainFunc: ProtoType = mainFunc
+
+    static member private CheckHeader(data: array<byte>) = 
+        data
+
+    /// The number of Upvalue of the main function can also be obtained from the prototype of the main function, so skip this field for now
+    static member private SkipUpvalueNum(data: array<byte>) = data
+
+    static member private ReadProto(data: array<byte>) = ()
+
+    static member Undump(data: array<byte>) =
+        data
+        |> BinaryChunk.CheckHeader
+        |> BinaryChunk.SkipUpvalueNum
+        |> BinaryChunk.ReadProto

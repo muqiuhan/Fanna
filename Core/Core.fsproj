@@ -4,12 +4,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Value.fs" />
-    <Compile Include="ByteCode.fs" />
-    <Compile Include="Token.fs" />
-    <Compile Include="Lexer.fs" />
-    <Compile Include="Parser.fs" />
-    <Compile Include="VirtualMachine.fs" />
     <Compile Include="Library.fs" />
+    <Compile Include="BinaryChunk.fs" />
   </ItemGroup>
 </Project>

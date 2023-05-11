@@ -24,7 +24,7 @@ type TestByteStreamReader() =
 
     [<Test>]
     static member ``ByteStreamReader.ReadUint32``() =
-        Assert.AreEqual(1u, ByteStreamReader([| 0x1uy; 0x0uy; 0x0uy; 0x0uy; 0x0uy |]).ReadUint32())
+        Assert.AreEqual(0x1B6C7561, ByteStreamReader([| 0x1Buy; 0x6Cuy; 0x75uy; 0x61uy; |]).ReadUint32())
 
     [<Test>]
     static member ``ByteStreamReader.ReadUint64``() =

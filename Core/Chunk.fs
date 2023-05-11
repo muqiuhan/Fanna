@@ -1,4 +1,4 @@
-module Fanna.Core.BinaryChunk
+module Fanna.Core.Chunk
 
 module Const =
     let SIGNATURE = uint32 (0x1b4c7561)
@@ -7,7 +7,7 @@ module Const =
     let LUAC_DATE = [| 0x19uy; 0x93uy; 0x0duy; 0x0auy; 0x1auy; 0x0auy |]
     let CINT_SIZE = 4uy
     let CSIZET_SIZE = 8uy
-    let INSTRUCTION_SIZE = 8uy
+    let INSTRUCTION_SIZE = 4uy
     let LUA_INTEGER_SIZE = 8uy
     let LUA_NUMBER_SIZE = 8uy
     let LUAC_INT = 0x5678L

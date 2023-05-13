@@ -1,8 +1,8 @@
 module Fanna.Core.Chunk
 
 module Const =
-    module Header = 
-        let SIGNATURE = uint32 (0x1b4c7561)
+    module Header =
+        let SIGNATURE = [|0x1Buy; 0x4Cuy; 0x75uy; 0x61uy |]
         let VERSION = 0x53uy
         let LUAC_FORMAT = 0uy
         let LUAC_DATE = [| 0x19uy; 0x93uy; 0x0duy; 0x0auy; 0x1auy; 0x0auy |]
@@ -57,7 +57,7 @@ type Header
     /// These 6 bytes are mainly used for further verification.
     /// If the Lua virtual machine finds that the 6 bytes are different from the expected one when loading the binary chunk,
     /// it will consider the file damaged and refuse to load it.
-    member public _.LuacData: array<byte> = luacData
+    member public _.LuacDate: array<byte> = luacData
 
     /// The next 5 bytes respectively record the number of bytes occupied by the five data types of
     /// cint, size_t, Lua virtual machine instruction, Lua integer and Lua floating point number in the binary chunk.
@@ -192,7 +192,7 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
     member public _.MainFunc: ProtoType = mainFunc
 
     static member private CheckHeader(data: ByteStreamReader) =
-        if data.ReadUint32() <> Const.Header.SIGNATURE then
+        if data.ReadBytes(4) <> Const.Header.SIGNATURE then
             failwith ("not a lua precompiled chunk!")
         else if data.ReadByte() <> Const.Header.VERSION then
             failwith ("version mismatch!")
@@ -218,9 +218,11 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
             data
 
     /// The number of Upvalue of the main function can also be obtained from the prototype of the main function, so skip this field for now
-    static member private SkipUpvalueNum(data: ByteStreamReader) = data
+    static member private SkipUpvalueNum(data: ByteStreamReader) =
+        let _upvalueNum = data.ReadByte()
+        data
 
-    static member private ReadProto(data: ByteStreamReader) = data
+    static member private ReadProto(data: ByteStreamReader) = data.ReadProto("")
 
     static member Undump(data: array<byte>) =
         ByteStreamReader(data)
@@ -231,6 +233,8 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
 and ByteStreamReader(data: array<byte>) =
     let __data = data
     let mutable __pos = -1
+        
+    member public this.Pos = __pos 
 
     member public this.ReadByte() =
         __pos <- __pos + 1
@@ -246,43 +250,19 @@ and ByteStreamReader(data: array<byte>) =
 
 
     /// Read an integer of cint type (4 bytes, mapped to F# uint32) from the byte stream in little endian mode
-    member public this.ReadUint32() =
-        let uint32Bytes = this.ReadBytes(4)
-
-        let uint32Bytes =
-            if System.BitConverter.IsLittleEndian then
-                Array.rev (uint32Bytes)
-            else
-                uint32Bytes
-
-        System.BitConverter.ToUInt32(uint32Bytes)
+    member public this.ReadUint32() = 
+        System.BitConverter.ToUInt32(this.ReadBytes(4))
 
     /// Read an integer of size_t type (8 bytes, mapped to F# uint64) from the byte stream in little endian mode
-    member public this.ReadUint64() =
-        let uint64Bytes = this.ReadBytes(8)
-
-        let uint64Bytes =
-            if System.BitConverter.IsLittleEndian then
-                uint64Bytes
-            else
-                Array.rev (uint64Bytes)
-
-        System.BitConverter.ToUInt64(uint64Bytes)
+    member public this.ReadUint64() =        
+        System.BitConverter.ToUInt64(this.ReadBytes(8))
 
     /// Read a Lua integer from the byte stream with ReadUint64() (8 bytes, mapped to F# int64 type)
     member public this.ReadLuaInteger() = int64 (this.ReadUint64())
 
     /// Read a Lua float number from the byte (8 bytes, mapped to F# float type)
     member public this.ReadLuaNumber() =
-        let floatBytes = this.ReadBytes(8)
-
-        let floatBytes =
-            if System.BitConverter.IsLittleEndian then
-                floatBytes
-            else
-                Array.rev (floatBytes)
-
-        System.BitConverter.ToDouble(floatBytes)
+        System.BitConverter.ToDouble(this.ReadBytes(8))
 
     /// Read a string from the byte stream
     member public this.ReadString() =
@@ -291,23 +271,23 @@ and ByteStreamReader(data: array<byte>) =
         | 0xFFuy -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (this.ReadUint64())))
         | size -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (size) - 1))
 
-    
+
     member public this.ReadCode() =
-        let codes = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let codes = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to codes.Length - 1 do
             codes[i] <- this.ReadUint32()
-        
+
         codes
-        
+
     member public this.ReadConstants() =
-        let constants = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let constants = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to constants.Length - 1 do
             constants[i] <- this.ReadConstant()
-        
+
         constants
-        
+
     member public this.ReadConstant() =
         match this.ReadByte() with
         // TAG_NIL
@@ -323,45 +303,45 @@ and ByteStreamReader(data: array<byte>) =
         // TAG_LONG_STR
         | 0x14uy -> LuaConstantString(this.ReadString())
         | _ -> failwith "corrupted!!!"
-        
+
     member public this.ReadUpvalues() =
-        let upvalues = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let upvalues = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to upvalues.Length - 1 do
             upvalues[i] <- Upvalue(this.ReadByte(), this.ReadByte())
-        
+
         upvalues
-        
+
     member public this.ReadProtos(parentSource: string) =
-        let protos = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let protos = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to protos.Length - 1 do
             protos[i] <- this.ReadProto(parentSource)
-        
+
         protos
-    
+
     member public this.ReadLineInfo() =
-        let lineInfo = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let lineInfo = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to lineInfo.Length - 1 do
             lineInfo[i] <- this.ReadUint32()
-        
+
         lineInfo
-        
+
     member public this.ReadLocVars() =
-        let locVars = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let locVars = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to locVars.Length - 1 do
             locVars[i] <- LocVar(this.ReadString(), this.ReadUint32(), this.ReadUint32())
-        
+
         locVars
-        
+
     member public this.ReadUpvalueNames() =
-        let upvalueNames = Array.zeroCreate(int(this.ReadUint32()))
-        
+        let upvalueNames = Array.zeroCreate (int (this.ReadUint32()))
+
         for i = 0 to upvalueNames.Length - 1 do
             upvalueNames[i] <- this.ReadString()
-        
+
         upvalueNames
 
     member public this.ReadProto(parentSource: string) : ProtoType =

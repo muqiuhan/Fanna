@@ -5,3 +5,5 @@ obj/
 /.idea
 
 Fanna.sln.DotSettings.user
+
+*.o

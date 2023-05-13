@@ -22,7 +22,7 @@ type TestBinaryChunk() =
             f (System.IO.File.ReadAllBytes(output_chunk_file_path))
         with e ->
             Assert.Warn(e.ToString())
-            Assert.Fail ()
+            Assert.Fail()
 
         System.IO.File.Delete(output_chunk_file_path)
 

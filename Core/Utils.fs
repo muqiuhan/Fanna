@@ -3,69 +3,6 @@ module Fanna.Core.Utils
 open System.Diagnostics
 open System.Threading.Tasks
 
-type ByteStreamReader(data: array<byte>) =
-    let __data = data
-    let mutable __pos = -1
-
-    member public this.ReadByte() =
-        __pos <- __pos + 1
-        __data[__pos]
-
-    member public this.ReadBytes(n: int) =
-        let bytes = Array.zeroCreate<byte> (n)
-
-        for i = 0 to n - 1 do
-            bytes[i] <- this.ReadByte()
-
-        bytes
-
-
-    /// Read an integer of cint type (4 bytes, mapped to F# uint32) from the byte stream in little endian mode
-    member public this.ReadUint32() =
-        let uint32Bytes = this.ReadBytes(4)
-
-        let uint32Bytes =
-            if System.BitConverter.IsLittleEndian then
-                Array.rev (uint32Bytes)
-            else
-                uint32Bytes
-
-        System.BitConverter.ToUInt32(uint32Bytes)
-
-    /// Read an integer of size_t type (8 bytes, mapped to F# uint64) from the byte stream in little endian mode
-    member public this.ReadUint64() =
-        let uint64Bytes = this.ReadBytes(8)
-
-        let uint64Bytes =
-            if System.BitConverter.IsLittleEndian then
-                uint64Bytes
-            else
-                Array.rev (uint64Bytes)
-
-        System.BitConverter.ToUInt64(uint64Bytes)
-
-    /// Read a Lua integer from the byte stream with ReadUint64() (8 bytes, mapped to F# int64 type)
-    member public this.ReadLuaInteger() = int64 (this.ReadUint64())
-
-    /// Read a Lua float number from the byte (8 bytes, mapped to F# float type)
-    member public this.ReadLuaNumber() =
-        let floatBytes = this.ReadBytes(8)
-
-        let floatBytes =
-            if System.BitConverter.IsLittleEndian then
-                floatBytes
-            else
-                Array.rev (floatBytes)
-
-        System.BitConverter.ToDouble(floatBytes)
-
-    /// Read a string from the byte stream
-    member public this.ReadString() =
-        match this.ReadByte() with
-        | 0uy -> ""
-        | 0xFFuy -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (this.ReadUint64())))
-        | size -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (size) - 1))
-
 module Numeric =
     type Convert =
         static member Int64ToByteArray(i: int64) =
@@ -76,6 +13,9 @@ module Numeric =
 
             result
 
+/// Copyright (c) 2022 Muqiu Han
+/// A simple, convenient library for calling shell commands in F# (supports Async).
+/// https://github.com/muqiuhan/FsExecute
 module Executor =
 
     type ExitStatus =
@@ -131,8 +71,7 @@ module Executor =
 
     let (<|>) = Bind
 
-    let Exec: string -> array<string> -> Async<CommandResult> =
-        fun command args -> ExecuteCommand command args
+    let Exec: string -> array<string> -> Async<CommandResult> = ExecuteCommand
 
     let ExecAsync: string -> array<string> -> CommandResult =
         fun command args -> Exec command args |> Async.RunSynchronously

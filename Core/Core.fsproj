@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="Library.fs" />
-    <Compile Include="Utils.fs" />
-    <Compile Include="Chunk.fs" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+    <ItemGroup>
+        <Compile Include="Library.fs"/>
+        <Compile Include="Utils.fs"/>
+        <Compile Include="Chunk.fs"/>
+    </ItemGroup>
 </Project>

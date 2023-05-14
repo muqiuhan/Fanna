@@ -1,3 +1,6 @@
+/// The carrier of Lua bytecode is BinaryChunk.
+/// First compiled by the compiler into an internal structure (which contains bytecode and other information), and then the bytecode is executed by the virtual machine.
+/// This kind of internal structure is called precompiled (Precompiled) chunk in Lua, and because of the binary format, it is also called BinaryChunk.
 module Fanna.Core.Chunk
 
 module Const =

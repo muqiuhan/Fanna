@@ -24,13 +24,29 @@ type Header
         format,
         luacDate,
         cintSize,
-        sizetSize,
+        csizetSize,
         instructionSize,
         luaIntegerSize,
         luaNumberSize,
         luacInt,
         luacNum
     ) =
+
+    override this.ToString() =
+        $"""
+        o- Header:
+            | Signature: {this.Signature}
+            | Version: 0x%0x{this.Version}
+            | Format: {this.Format}
+            | LuaCDate: {this.LuacDate}
+            | CIntSize: {this.CintSize}
+            | CSizetSize: {this.CSizetSize}
+            | InstructionSize: {this.InstructionSize}
+            | LuaIntegerSize: {this.LuaIntegerSize}
+            | LuaNumberSize: {this.LuaNumberSize}
+            | LuacInt: {this.LuacInt}
+            | LuacNum: {this.LuacNum}
+        """
 
     /// Signature is used to quickly identify the file format.
     /// Lua's binary chunk signature is 4 bytes, expressed in hexadecimal is Ox1B4C7561
@@ -67,7 +83,7 @@ type Header
     /// When the Lua virtual machine loads a binary chunk, it will check the number of bytes occupied by the above five data types,
     /// and refuse to load if it does not match the expected value.
     member public _.CintSize: byte = cintSize
-    member public _.SizetSize: byte = sizetSize
+    member public _.CSizetSize: byte = csizetSize
     member public _.InstructionSize: byte = instructionSize
     member public _.LuaIntegerSize: byte = luaIntegerSize
     member public _.LuaNumberSize: byte = luaNumberSize
@@ -98,7 +114,7 @@ type Header
             failwith ("corrupted!")
         else if cintSize <> Const.Header.CINT_SIZE then
             failwith ("int size mismatch!")
-        else if sizetSize <> Const.Header.CSIZET_SIZE then
+        else if csizetSize <> Const.Header.CSIZET_SIZE then
             failwith ("size_t size mismatch!")
         else if instructionSize <> Const.Header.INSTRUCTION_SIZE then
             failwith ("instruction size mismatch!")
@@ -130,9 +146,28 @@ type ProtoType
         upvalues,
         protos,
         lineInfo,
-        locaVars,
+        locVars,
         UpvalueNames
     ) =
+
+    override this.ToString() =
+        $"""
+        o- Proto
+            | Source: {this.Source}
+            | LineDefined: {this.LineDefined}
+            | LastLineDefined: {this.LastLineDefined}
+            | NumParams: {this.NumParams}
+            | IsVararg: {this.IsVararg}
+            | MaxStackSize: {this.MaxStackSize}
+            | Code: {this.Code}
+            | Constants: {this.Constants}
+            | Upvalues: {this.Upvalues}
+            | Protos: {this.Protos}
+            | LineInfo: {this.LineInfo}
+            | LocVars: {this.LocVars}
+            | UpvalueNames: {this.UpvalueNames}
+        """
+
     /// The first field of the function prototype stores the source file name,
     /// and records which source file the binary chunk is compiled from.
     /// In order to avoid repetition, only in the prototype of the main function,
@@ -184,7 +219,7 @@ type ProtoType
     /// After the line number table is the local variable table,
     /// which is used to record the local variable name.
     /// Each element in the table contains the variable name (stored by string type) and start and stop instruction index (stored by cint type).
-    member public _.LocVars: array<LocVar> = locaVars
+    member public _.LocVars: array<LocVar> = locVars
 
     /// The last part of the function prototype is the list of Upvalue names.
     /// The elements in this list (stored in string type) correspond to the elements in the previous Upvalue table one by one,
@@ -235,7 +270,10 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
                 data.ReadLuaInteger(),
                 data.ReadLuaNumber()
             )
-        
+            |> fun v ->
+                printfn $"{v}"
+                v
+
         if header.Check() then
             data
         else
@@ -390,3 +428,8 @@ and ByteStreamReader(data: array<byte>) =
             this.ReadLocVars(),
             this.ReadUpvalueNames()
         )
+
+        // dev debug
+        |> fun v ->
+            printfn $"{v}"
+            v

@@ -6,7 +6,7 @@
   <ItemGroup>
     <Compile Include="Library.fs" />
     <Compile Include="Utils.fs" />
-    <Compile Include="Chunk.fs" />
     <Compile Include="Instruction.fs" />
+    <Compile Include="Chunk.fs" />
   </ItemGroup>
 </Project>

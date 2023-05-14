@@ -34,18 +34,18 @@ type Header
 
     override this.ToString() =
         $"""
-        o- Header:
-            | Signature: {this.Signature}
-            | Version: 0x%0x{this.Version}
-            | Format: {this.Format}
-            | LuaCDate: {this.LuacDate}
-            | CIntSize: {this.CintSize}
-            | CSizetSize: {this.CSizetSize}
-            | InstructionSize: {this.InstructionSize}
-            | LuaIntegerSize: {this.LuaIntegerSize}
-            | LuaNumberSize: {this.LuaNumberSize}
-            | LuacInt: {this.LuacInt}
-            | LuacNum: {this.LuacNum}
+        o-Header:
+            - Signature: {System.BitConverter.ToString(this.Signature)}
+            - Version: 0x%0x{this.Version}
+            - Format: {this.Format}
+            - LuaCDate: {System.BitConverter.ToString(this.LuacDate)}
+            - CIntSize: {this.CintSize}
+            - CSizetSize: {this.CSizetSize}
+            - InstructionSize: {this.InstructionSize}
+            - LuaIntegerSize: {this.LuaIntegerSize}
+            - LuaNumberSize: {this.LuaNumberSize}
+            - LuacInt: {this.LuacInt}
+            - LuacNum: {this.LuacNum}
         """
 
     /// Signature is used to quickly identify the file format.
@@ -152,21 +152,56 @@ type ProtoType
 
     override this.ToString() =
         $"""
-        o- Proto
-            | Source: {this.Source}
-            | LineDefined: {this.LineDefined}
-            | LastLineDefined: {this.LastLineDefined}
-            | NumParams: {this.NumParams}
-            | IsVararg: {this.IsVararg}
-            | MaxStackSize: {this.MaxStackSize}
-            | Code: {this.Code}
-            | Constants: {this.Constants}
-            | Upvalues: {this.Upvalues}
-            | Protos: {this.Protos}
-            | LineInfo: {this.LineInfo}
-            | LocVars: {this.LocVars}
-            | UpvalueNames: {this.UpvalueNames}
+        o-Proto
+            - Source: {this.Source}
+            - LineDefined: {this.LineDefined}
+            - LastLineDefined: {this.LastLineDefined}
+            - NumParams: {this.NumParams}
+            - IsVararg: {this.IsVararg}
+            - MaxStackSize: {this.MaxStackSize}
+            - Code:
+                {this.CodeToString()}
+
+            - Constants: 
+                [ {this.ConstantsToString()} ]
+
+            - Upvalues: 
+                [ {this.UpvaluesToString()} ]
+
+            - Protos:
+                [ {this.ProtosToString()} ]
+
+            - LocVars: 
+                [ {this.LocVarsToString()} ]
+            
+            - UpvalueNames: 
+                [ {this.UpvalueNamesToString()} ]
         """
+
+    member private _.ProtosToString() =
+        Array.map (fun proto -> proto.ToString()) protos |> String.concat "\n\t\t  "
+
+    member private _.LocVarsToString() =
+        Array.map (fun locVar -> locVar.ToString()) locVars |> String.concat "\n\t\t  "
+
+    member private _.UpvalueNamesToString() =
+        Array.map (fun upvalueName -> upvalueName) UpvalueNames
+        |> String.concat "\n\t\t  "
+
+    member private _.CodeToString() =
+        Array.map2
+            (fun line (code: uint32) -> $"{line}| {System.BitConverter.ToString(System.BitConverter.GetBytes(code))}")
+            lineInfo
+            code
+        |> String.concat "\n\t\t"
+
+    member private _.ConstantsToString() =
+        Array.map (fun constant -> constant.ToString()) constants
+        |> String.concat "\n\t\t  "
+
+    member private _.UpvaluesToString() =
+        Array.map (fun upvalue -> upvalue.ToString()) upvalues
+        |> String.concat "\n\t\t  "
 
     /// The first field of the function prototype stores the source file name,
     /// and records which source file the binary chunk is compiled from.
@@ -233,14 +268,27 @@ and Constant =
     | LuaConstantNumber of float
     | LuaConstantBoolean of bool
 
+    override this.ToString() =
+        match this with
+        | LuaConstantNIL -> "nil"
+        | LuaConstantBoolean boolean -> $"Boolean: {boolean.ToString()}"
+        | LuaConstantInteger integer -> $"Integer: {integer.ToString()}"
+        | LuaConstantNumber number -> $"Number: {number.ToString()}"
+        | LuaConstantString str -> $"String: \"{str}\""
+
 and Upvalue(inStack, idx) =
     member public _.Instack: byte = inStack
     member public _.Idx: byte = idx
+
+    override _.ToString() = $"(Instack: {inStack}, Idx: {idx})"
 
 and LocVar(varName, startPC, endPC) =
     member public _.VarName: string = varName
     member public _.StartPC: uint32 = startPC
     member public _.EndPC: uint32 = endPC
+
+    override _.ToString() =
+        $"(VarName: {varName}, StartPC: {startPC}, EndPC: {endPC})"
 
 /// Lua's binary chunk is essentially a byte stream.
 /// The binary chunk format (including Lua virtual machine instructions) is an internal implementation detail of the Lua virtual machine.

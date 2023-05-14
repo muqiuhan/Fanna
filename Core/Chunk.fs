@@ -3,6 +3,8 @@
 /// This kind of internal structure is called precompiled (Precompiled) chunk in Lua, and because of the binary format, it is also called BinaryChunk.
 module Fanna.Core.Chunk
 
+open Fanna.Core.Instruction
+
 module Const =
     module Header =
         let SIGNATURE = [| 0x1Buy; 0x4Cuy; 0x75uy; 0x61uy |]
@@ -189,11 +191,13 @@ type ProtoType
         |> String.concat "\n\t\t  "
 
     member private _.CodeToString() =
-        Array.map2
-            (fun line (code: uint32) -> $"{line}| {System.BitConverter.ToString(System.BitConverter.GetBytes(code))}")
-            lineInfo
+        Array.mapFold
+            (fun pc (code: uint32) ->
+                let instruction = ChunkInstruction(code)
+                ($"[{pc}] - {instruction.Name}\t{instruction}", pc + 1))
+            0
             code
-        |> String.concat "\n\t\t"
+        |> (fun (str, _) -> String.concat "\n\t\t" str)
 
     member private _.ConstantsToString() =
         Array.map (fun constant -> constant.ToString()) constants

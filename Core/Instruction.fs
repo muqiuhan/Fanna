@@ -116,11 +116,11 @@ type Instruction(testFlag, setAFlag, argBMode, argCMode, instructionMode, name) 
 
     /// Complete instruction list
     static member public INSTRUCTIONS =
-        [| Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "MOVE     ")
-           Instruction(0uy, 1uy, Arg_K, Arg_N, IABx, "LOADK    ")
-           Instruction(0uy, 1uy, Arg_N, Arg_N, IABx, "LOADKX  ")
+        [| Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "MOVE")
+           Instruction(0uy, 1uy, Arg_K, Arg_N, IABx, "LOADK")
+           Instruction(0uy, 1uy, Arg_N, Arg_N, IABx, "LOADKX")
            Instruction(0uy, 1uy, Arg_U, Arg_U, IABC, "LOADBOOL")
-           Instruction(0uy, 1uy, Arg_U, Arg_N, IABC, "LOADNIL ")
+           Instruction(0uy, 1uy, Arg_U, Arg_N, IABC, "LOADNIL")
            Instruction(0uy, 1uy, Arg_U, Arg_N, IABC, "GETUPVAL")
            Instruction(0uy, 1uy, Arg_U, Arg_K, IABC, "GETTABUP")
            Instruction(0uy, 1uy, Arg_R, Arg_K, IABC, "GETTABLE")
@@ -128,40 +128,40 @@ type Instruction(testFlag, setAFlag, argBMode, argCMode, instructionMode, name) 
            Instruction(0uy, 0uy, Arg_U, Arg_N, IABC, "SETUPVAL")
            Instruction(0uy, 0uy, Arg_K, Arg_K, IABC, "SETTABLE")
            Instruction(0uy, 1uy, Arg_U, Arg_U, IABC, "NEWTABLE")
-           Instruction(0uy, 1uy, Arg_R, Arg_K, IABC, "SELF     ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "ADD      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "SUB      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "MUL      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "MOD      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "POW      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "DIV      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "IDIV     ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "BAND     ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "BOR      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "BXOR     ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "SHL      ")
-           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "SHR      ")
-           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "UNM      ")
-           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "BNOT     ")
-           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "NOT      ")
-           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "LEN      ")
-           Instruction(0uy, 1uy, Arg_R, Arg_R, IABC, "CONCAT  ")
-           Instruction(0uy, 0uy, Arg_R, Arg_N, IAsBx, "JMP      ")
-           Instruction(1uy, 0uy, Arg_K, Arg_K, IABC, "EQ       ")
-           Instruction(1uy, 0uy, Arg_K, Arg_K, IABC, "LT       ")
-           Instruction(1uy, 0uy, Arg_K, Arg_K, IABC, "LE       ")
-           Instruction(1uy, 0uy, Arg_N, Arg_U, IABC, "TEST     ")
-           Instruction(1uy, 1uy, Arg_R, Arg_U, IABC, "TESTSET ")
-           Instruction(0uy, 1uy, Arg_U, Arg_U, IABC, "CALL     ")
+           Instruction(0uy, 1uy, Arg_R, Arg_K, IABC, "SELF")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "ADD")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "SUB")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "MUL")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "MOD")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "POW")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "DIV")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "IDIV")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "BAND")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "BOR")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "BXOR")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "SHL")
+           Instruction(0uy, 1uy, Arg_K, Arg_K, IABC, "SHR")
+           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "UNM")
+           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "BNOT")
+           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "NOT")
+           Instruction(0uy, 1uy, Arg_R, Arg_N, IABC, "LEN")
+           Instruction(0uy, 1uy, Arg_R, Arg_R, IABC, "CONCAT")
+           Instruction(0uy, 0uy, Arg_R, Arg_N, IAsBx, "JMP")
+           Instruction(1uy, 0uy, Arg_K, Arg_K, IABC, "EQ")
+           Instruction(1uy, 0uy, Arg_K, Arg_K, IABC, "LT")
+           Instruction(1uy, 0uy, Arg_K, Arg_K, IABC, "LE")
+           Instruction(1uy, 0uy, Arg_N, Arg_U, IABC, "TEST")
+           Instruction(1uy, 1uy, Arg_R, Arg_U, IABC, "TESTSET")
+           Instruction(0uy, 1uy, Arg_U, Arg_U, IABC, "CALL")
            Instruction(0uy, 1uy, Arg_U, Arg_U, IABC, "TAILCALL")
-           Instruction(0uy, 0uy, Arg_U, Arg_N, IABC, "RETURN  ")
-           Instruction(0uy, 1uy, Arg_R, Arg_N, IAsBx, "FORLOOP ")
-           Instruction(0uy, 1uy, Arg_R, Arg_N, IAsBx, "FORPREP ")
+           Instruction(0uy, 0uy, Arg_U, Arg_N, IABC, "RETURN")
+           Instruction(0uy, 1uy, Arg_R, Arg_N, IAsBx, "FORLOOP")
+           Instruction(0uy, 1uy, Arg_R, Arg_N, IAsBx, "FORPREP")
            Instruction(0uy, 0uy, Arg_N, Arg_U, IABC, "TFORCALL")
            Instruction(0uy, 1uy, Arg_R, Arg_N, IAsBx, "TFORLOOP")
-           Instruction(0uy, 0uy, Arg_U, Arg_U, IABC, "SETLIST ")
-           Instruction(0uy, 1uy, Arg_U, Arg_N, IABx, "CLOSURE ")
-           Instruction(0uy, 1uy, Arg_U, Arg_N, IABC, "VARARG  ")
+           Instruction(0uy, 0uy, Arg_U, Arg_U, IABC, "SETLIST")
+           Instruction(0uy, 1uy, Arg_U, Arg_N, IABx, "CLOSURE")
+           Instruction(0uy, 1uy, Arg_U, Arg_N, IABC, "VARARG")
            Instruction(0uy, 0uy, Arg_U, Arg_U, IAx, "EXTRAARG") |]
 
 /// Instructions stored in BinaryChunk
@@ -186,3 +186,46 @@ type ChunkInstruction(instruction: uint32) =
         (a, bx - Const.MAXARG_sBx)
 
     member public _.Ax() = instruction >>> 6
+
+    override this.ToString() =
+        match this.Mode with
+
+        // For instructions in iABC mode, operand A is printed first, and operand B or C may not be used in some instructions, so it is not necessarily printed.
+        // If the most significant bit of operand B or C is l, it is considered to represent a constant table index and output as a negative number.
+        | IABC ->
+            let (a, b, c) = this.ABC()
+
+            (match this.BMode with
+             | Arg_N -> ""
+             | _ ->
+                 if b > 0xFFu then
+                     $"{a} {(-1 - int (b)) &&& 0xFF}"
+                 else
+                     $"{a} {b}")
+            |> fun ab ->
+                match this.CMode with
+                | Arg_N -> ""
+                | _ ->
+                    if b > 0xFFu then
+                        ab + $" {(-1 - int (c)) &&& 0xFF}"
+                    else
+                        $"{c}"
+        // For instructions in iABx mode, operand A is printed out first, followed by operand Bx.
+        // If operand Bx represents a constant table index, output as a negative number.
+        | IABx ->
+            let (a, bx) = this.ABx()
+
+            match this.BMode with
+            | Arg_K -> $"{a} {-1 - int (bx)}"
+            | Arg_U -> $"{a} {bx}"
+            | _ -> ""
+
+        // For instructions in iAsBx mode, print out operands A and sBx successively
+        | IAsBx ->
+            let (a, asbx) = this.AsBx()
+            $"{a} {asbx}"
+
+        // For instructions in iAx mode, only the operand Ax is printed
+        | IAx ->
+            let ax = this.Ax()
+            $"{ax}"

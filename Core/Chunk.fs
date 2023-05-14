@@ -5,7 +5,7 @@ module Fanna.Core.Chunk
 
 module Const =
     module Header =
-        let SIGNATURE = [|0x1Buy; 0x4Cuy; 0x75uy; 0x61uy |]
+        let SIGNATURE = [| 0x1Buy; 0x4Cuy; 0x75uy; 0x61uy |]
         let VERSION = 0x53uy
         let LUAC_FORMAT = 0uy
         let LUAC_DATE = [| 0x19uy; 0x93uy; 0x0duy; 0x0auy; 0x1auy; 0x0auy |]
@@ -22,7 +22,7 @@ type Header
         signature,
         version,
         format,
-        luacData,
+        luacDate,
         cintSize,
         sizetSize,
         instructionSize,
@@ -60,7 +60,7 @@ type Header
     /// These 6 bytes are mainly used for further verification.
     /// If the Lua virtual machine finds that the 6 bytes are different from the expected one when loading the binary chunk,
     /// it will consider the file damaged and refuse to load it.
-    member public _.LuacDate: array<byte> = luacData
+    member public _.LuacDate: array<byte> = luacDate
 
     /// The next 5 bytes respectively record the number of bytes occupied by the five data types of
     /// cint, size_t, Lua virtual machine instruction, Lua integer and Lua floating point number in the binary chunk.
@@ -86,6 +86,32 @@ type Header
     /// and if it does not match, it will refuse to load.
     /// Currently mainstream platforms and languages ​​generally adopt the IEEE 754 floating-point format.
     member public _.LuacNum: float = luacNum
+
+    member public _.Check() =
+        if signature <> Const.Header.SIGNATURE then
+            failwith ("not a lua precompiled chunk!")
+        else if version <> Const.Header.VERSION then
+            failwith ("version mismatch!")
+        else if format <> Const.Header.LUAC_FORMAT then
+            failwith ("format mismatch!")
+        else if luacDate <> Const.Header.LUAC_DATE then
+            failwith ("corrupted!")
+        else if cintSize <> Const.Header.CINT_SIZE then
+            failwith ("int size mismatch!")
+        else if sizetSize <> Const.Header.CSIZET_SIZE then
+            failwith ("size_t size mismatch!")
+        else if instructionSize <> Const.Header.INSTRUCTION_SIZE then
+            failwith ("instruction size mismatch!")
+        else if luaIntegerSize <> Const.Header.LUA_INTEGER_SIZE then
+            failwith ("lua integer size mismatch!")
+        else if luaNumberSize <> Const.Header.LUA_NUMBER_SIZE then
+            failwith ("lua number size mismatch!")
+        else if luacInt <> Const.Header.LUAC_INT then
+            failwith ("endianness mismatch!")
+        else if luacNum <> Const.Header.LUAC_NUM then
+            failwith ("float format mismatch!")
+        else
+            true
 
 
 /// The function prototype mainly includes function basic information, instruction table, constant table, upvalue table, sub-function prototype table and debugging information
@@ -195,30 +221,26 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
     member public _.MainFunc: ProtoType = mainFunc
 
     static member private CheckHeader(data: ByteStreamReader) =
-        if data.ReadBytes(4) <> Const.Header.SIGNATURE then
-            failwith ("not a lua precompiled chunk!")
-        else if data.ReadByte() <> Const.Header.VERSION then
-            failwith ("version mismatch!")
-        else if data.ReadByte() <> Const.Header.LUAC_FORMAT then
-            failwith ("format mismatch!")
-        else if data.ReadBytes(6) <> Const.Header.LUAC_DATE then
-            failwith ("corrupted!")
-        else if data.ReadByte() <> Const.Header.CINT_SIZE then
-            failwith ("int size mismatch!")
-        else if data.ReadByte() <> Const.Header.CSIZET_SIZE then
-            failwith ("size_t size mismatch!")
-        else if data.ReadByte() <> Const.Header.INSTRUCTION_SIZE then
-            failwith ("instruction size mismatch!")
-        else if data.ReadByte() <> Const.Header.LUA_INTEGER_SIZE then
-            failwith ("lua integer size mismatch!")
-        else if data.ReadByte() <> Const.Header.LUA_NUMBER_SIZE then
-            failwith ("lua number size mismatch!")
-        else if data.ReadLuaInteger() <> Const.Header.LUAC_INT then
-            failwith ("endianness mismatch!")
-        else if data.ReadLuaNumber() <> Const.Header.LUAC_NUM then
-            failwith ("float format mismatch!")
-        else
+        let header =
+            Header(
+                data.ReadBytes(4),
+                data.ReadByte(),
+                data.ReadByte(),
+                data.ReadBytes(6),
+                data.ReadByte(),
+                data.ReadByte(),
+                data.ReadByte(),
+                data.ReadByte(),
+                data.ReadByte(),
+                data.ReadLuaInteger(),
+                data.ReadLuaNumber()
+            )
+        
+        if header.Check() then
             data
+        else
+            failwith "check header error"
+
 
     /// The number of Upvalue of the main function can also be obtained from the prototype of the main function, so skip this field for now
     static member private SkipUpvalueNum(data: ByteStreamReader) =
@@ -236,8 +258,8 @@ type BinaryChunk(header, sizeUpvalues, mainFunc) =
 and ByteStreamReader(data: array<byte>) =
     let __data = data
     let mutable __pos = -1
-        
-    member public this.Pos = __pos 
+
+    member public this.Pos = __pos
 
     member public this.ReadByte() =
         __pos <- __pos + 1
@@ -253,11 +275,11 @@ and ByteStreamReader(data: array<byte>) =
 
 
     /// Read an integer of cint type (4 bytes, mapped to F# uint32) from the byte stream in little endian mode
-    member public this.ReadUint32() = 
+    member public this.ReadUint32() =
         System.BitConverter.ToUInt32(this.ReadBytes(4))
 
     /// Read an integer of size_t type (8 bytes, mapped to F# uint64) from the byte stream in little endian mode
-    member public this.ReadUint64() =        
+    member public this.ReadUint64() =
         System.BitConverter.ToUInt64(this.ReadBytes(8))
 
     /// Read a Lua integer from the byte stream with ReadUint64() (8 bytes, mapped to F# int64 type)

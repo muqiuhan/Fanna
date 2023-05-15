@@ -29,7 +29,8 @@ type TestBinaryChunk() =
 
     [<Test>]
     static member ``BinaryChunk.Undump``() =
-        TestBinaryChunk.TestWithChunkFile(fun chunk -> BinaryChunk.Undump(chunk) |> ignore)
+        TestBinaryChunk.TestWithChunkFile(fun chunk ->
+            BinaryChunk.Undump(chunk) |> ignore)
 
 
 [<TestFixture>]
@@ -47,7 +48,10 @@ type TestByteStreamReader() =
 
     [<Test>]
     static member ``ByteStreamReader.ReadUint32``() =
-        Assert.AreEqual(0x01u, ByteStreamReader([| 0x01uy; 0x00uy; 0x00uy; 0x00uy |]).ReadUint32())
+        Assert.AreEqual(
+            0x01u,
+            ByteStreamReader([| 0x01uy; 0x00uy; 0x00uy; 0x00uy |]).ReadUint32()
+        )
 
     [<Test>]
     static member ``ByteStreamReader.ReadUint64``() =
@@ -77,7 +81,9 @@ type TestByteStreamReader() =
     static member ``ByteStreamReader.ReadString``() =
         Assert.AreEqual(
             "fanna",
-            ByteStreamReader([| 6uy; byte ('f'); byte ('a'); byte ('n'); byte ('n'); byte ('a') |])
+            ByteStreamReader(
+                [| 6uy; byte ('f'); byte ('a'); byte ('n'); byte ('n'); byte ('a') |]
+            )
                 .ReadString()
         )
 

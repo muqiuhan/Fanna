@@ -46,7 +46,10 @@ module Executor =
                 p.Start() |> ignore
 
                 let outTask =
-                    Task.WhenAll([| p.StandardOutput.ReadToEndAsync(); p.StandardError.ReadToEndAsync() |])
+                    Task.WhenAll(
+                        [| p.StandardOutput.ReadToEndAsync()
+                           p.StandardError.ReadToEndAsync() |]
+                    )
 
                 do! p.WaitForExitAsync() |> Async.AwaitTask
                 let! out = outTask |> Async.AwaitTask

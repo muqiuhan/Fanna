@@ -173,7 +173,9 @@ type ChunkInstruction(instruction: uint32) =
     member public this.CMode = Instruction.INSTRUCTIONS[int (this.OpCode)].ArgCMode
 
     member public _.ABC() =
-        (instruction >>> 6 &&& 0xFFu, instruction >>> 23 &&& 0x1FFu, instruction >>> 14 &&& 0x1FFu)
+        (instruction >>> 6 &&& 0xFFu,
+         instruction >>> 23 &&& 0x1FFu,
+         instruction >>> 14 &&& 0x1FFu)
 
     member public _.ABx() =
         (instruction >>> 6 &&& 0xFFu, instruction >>> 14)
@@ -190,28 +192,25 @@ type ChunkInstruction(instruction: uint32) =
     override this.ToString() =
         match this.Mode with
 
-        // For instructions in iABC mode, operand A is printed first, and operand B or C may not be used in some instructions, so it is not necessarily printed.
-        // If the most significant bit of operand B or C is l, it is considered to represent a constant table index and output as a negative number.
+        // For instructions in iABC mode, operand A is printed first,
+        // and operand B or C may not be used in some instructions, so it is not necessarily printed.
+        // If the most significant bit of operand B or C is l,
+        // it is considered to represent a constant table index and output as a negative number.
         | IABC ->
             let (a, b, c) = this.ABC()
-            
+
             let b =
-             match this.BMode with
-             | Arg_N -> ""
-             | _ ->
-                 if b > 0xFFu then
-                     $"{-1 - int(b &&& 0xFFu)}"
-                 else
-                     $"{b}"
-            let c = 
+                match this.BMode with
+                | Arg_N -> ""
+                | _ -> if b > 0xFFu then $"{-1 - int (b &&& 0xFFu)}" else $"{b}"
+
+            let c =
                 match this.CMode with
                 | Arg_N -> ""
-                | _ ->
-                    if c > 0xFFu then
-                        $"{-1 - int(c &&& 0xFFu)}"
-                    else
-                        $"{c}"
+                | _ -> if c > 0xFFu then $"{-1 - int (c &&& 0xFFu)}" else $"{c}"
+
             $"{a} {b} {c}"
+
         // For instructions in iABx mode, operand A is printed out first, followed by operand Bx.
         // If operand Bx represents a constant table index, output as a negative number.
         | IABx ->

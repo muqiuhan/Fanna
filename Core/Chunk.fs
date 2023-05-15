@@ -383,7 +383,8 @@ and ByteStreamReader(data: array<byte>) =
     member public this.ReadString() =
         match this.ReadByte() with
         | 0uy -> ""
-        | 0xFFuy -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (this.ReadUint64())))
+        | 0xFFuy ->
+            System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (this.ReadUint64())))
         | size -> System.Text.Encoding.UTF8.GetString(this.ReadBytes(int (size) - 1))
 
 
